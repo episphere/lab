@@ -81,8 +81,7 @@ praful.setupIndexedDB = (
   objectStoreName,
   objectStoreOpts = {},
   indexOpts
-) =>
-  new Promise((resolve) => {
+) =>new Promise((resolve) => {
     const dbRequest = window.indexedDB.open(dbName)
     dbRequest.onupgradeneeded = () => {
       const db = dbRequest.result
