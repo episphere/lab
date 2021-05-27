@@ -98,7 +98,6 @@ praful.setupIndexedDB = (
           )
         }
       }
-      resolve(db)
     }
     dbRequest.onsuccess = (evt) => {
       const db = evt.target.result
