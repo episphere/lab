@@ -464,17 +464,20 @@ praful.trainModel = async () => {
   const surface = praful.visor.surface({ name: 'Model Summary', tab: 'Model Inspection'})
   tfvis.show.modelSummary(surface, praful.mnistModel)
 
-  const imagesPerGroup = 300
+  const imagesPerGroup = 1000
   const validationSplit = 0.15
   const totalNumGroups = manifests["training"].count / imagesPerGroup
-  const batchSize = 300
+  const batchSize = 100
   const epochsToTrainFor = 3
   const totalNumEpochs = totalNumGroups * epochsToTrainFor
+  praful.modelTrainingSurface = { name: "Model Training", tab: "Training" }
+  const metricsVisualizerCallback = tfvis.show.fitCallbacks(praful.modelTrainingSurface, ['loss', 'acc'],['onEpochEnd'])
   praful.currentEpochNum = 0
+  
   for (let currentBatchNum = 0; currentBatchNum < totalNumGroups; currentBatchNum++ ) {
     if (!praful.stop) {
       praful.writeToConsole(`Starting group ${currentBatchNum + 1}/${totalNumGroups}`, false, "before")
-      await praful.trainForEpoch(imagesPerGroup, currentBatchNum, batchSize, validationSplit, epochsToTrainFor, totalNumGroups)
+      await praful.trainForEpoch(imagesPerGroup, currentBatchNum, batchSize, validationSplit, epochsToTrainFor, metricsVisualizerCallback)
     }
   }
   praful.writeToConsole("Model successfully trained!")
@@ -486,7 +489,7 @@ praful.trainForEpoch = async (
   batchSize,
   validationSplit,
   epochsToTrainFor,
-  totalNumGroups
+  metricsVisualizerCallback
 ) => {
   praful.writeToConsole(
     `0/${imagesPerGroup} images fetched for current group`,
@@ -501,10 +504,8 @@ praful.trainForEpoch = async (
     }
   }
   const batchData = await praful.getBatch("trainingData", currentBatchNum * imagesPerGroup, imagesPerGroup, imageFetchCallback)
-  praful.modelTrainingSurface = praful.modelTrainingSurface || { name: "Model Training", tab: "Training" }
   let trainBatchCount = 0
   console.log(batchData)
-  let metricsVisualizerCallback = tfvis.show.fitCallbacks(praful.modelTrainingSurface, ['loss', 'acc'],['onEpochEnd'])
   await praful.mnistModel.fit(batchData.xs, batchData.labels, {
     batchSize,
     validationSplit,
@@ -524,6 +525,7 @@ praful.trainForEpoch = async (
       onEpochEnd: (epoch, logs) => {
         metricsVisualizerCallback.onEpochEnd(epoch, logs)
         praful.writeToConsole(`Training Epoch ${praful.currentEpochNum} completed`)
+        praful.writeToConsole(`Validation Loss = ${logs.val_loss} ; Validation Accuracy = ${logs.val_acc}`)
       }
     }
   })
