@@ -11,10 +11,30 @@
 
 <body class="bg-black">
   <div class="container grid w-full h-screen max-w-full max-h-screen" style="grid-template-rows: auto auto 1fr;">
+    <nav class="bg-gray-800 border-b border-solid border-gray-500">
+      <div class="max-w-full mx-auto px-2 sm:px-6 lg:px-8">
+        <div class="relative flex items-center justify-between h-16">
+          <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+            <div class="hidden sm:block">
+              <div class="flex space-x-4">
+                <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
+                <a href="./iris.html" class="hover:bg-gray-700 hover:text-white text-gray-300 px-5 py-2 rounded-md text-sm font-medium">Iris</a>
+    
+                <a href="./mnist.html" class="hover:bg-gray-700 hover:text-white text-gray-300 px-5 py-2 rounded-md text-sm font-medium">MNIST</a>
+    
+                <a href="./sequencing.html" class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Sequencing</a>
+                
+                <a href="./timeSeries.html" class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Time Series</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>      
+    </nav>
     <header class="bg-gray-800 shadow">
-      <div class="flex flex-col mx-auto py-5 px-2 sm:px-6 lg:px-8 w-full">
+      <div class="flex flex-col mx-auto py-5 px-8 w-full">
         <span class="flex flex-row">
-          <h1 class="text-4xl tracking-wider font-bold text-yellow-500">
+          <h1 class="text-4xl tracking-wider font-bold text-yellow-400">
             epiSphere Lab</span>
           </h1>
           <p class="text-gray-200 px-2"><span>[ <a href="https://github.com/episphere/lab" class="text-blue-500" target="_blank">code</a> ]</span><span class="mx-2">[ <a href="https://gitter.im/episphere/Fair" class="text-blue-500" target="_blank">gitter</a> ]</span></p>
@@ -24,29 +44,29 @@
         </span>
       </div>
     </header>
-    <div>
-      <div class="mx-8 my-2">
-        <h1 class="text-xl font-mono text-red-300 py-2">Datasets</h1>
-        <p class="text-gray-300 font-mono text-sm">A number of illustrative data sets was chosen to cover the range of data types: multivariate value domains, images, biological sequences, and demographic time series. The idea is that methods development can be assessed by the results on these well-understood reference datasets.</p>
-        <p class="text-gray-300 font-mono text-sm py-4">Additional Data Sources: <a href="https://www.tensorflow.org/datasets/catalog/overview" class="text-blue-400 underline" target="_blank"> TensorFlow Datasets Catalog </a></p>
+    <div class="px-8">
+      <div class="mt-2">
+        <h1 class="text-xl font-mono text-gray-300 py-2">Datasets</h1>
+        <p class="text-gray-400 font-mono text-sm">A number of illustrative data sets was chosen to cover the range of data types: multivariate value domains, images, biological sequences, and demographic time series. The idea is that methods development can be assessed by the results on these well-understood reference datasets.</p>
+        <p class="text-gray-300 font-mono text-sm pt-3">Additional Data Sources: <a href="https://www.tensorflow.org/datasets/catalog/overview" class="text-blue-400 underline" target="_blank"> TensorFlow Datasets Catalog </a></p>
       </div>
-      <div class="mx-8 my-4">
+      <div class="mt-8">
         <ul class="list-default text-gray-200">
-          <li class="my-10">
-            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./iris.html" class="font-sans tracking-wider text-red-300">Iris</a>: </h1><span class="mt-1"><span class="px-2"><a href="https://episphere.github.io/qaqc/iris.csv" class="text-blue-400 text-lg underline" target="_blank">iris.csv</a></span> | <span class="px-2"><a href="https://episphere.github.io/qaqc/iris.json" class="text-blue-400 text-lg underline" target="_blank">iris.json</a></span></span></div>
-            <div class="mt-1"><em>Fisher,R.A. "The use of multiple measurements in taxonomic problems" Annual Eugenics, 7, Part II, 179-188 (1936) [ <a href="https://onlinelibrary.wiley.com/doi/10.1111/j.1469-1809.1936.tb02137.x" class="text-blue-400 underline" target="_blank">Web Link</a> ]</em></div>
+          <li>
+            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./iris.html" class="font-sans tracking-wider text-yellow-300">Iris</a>: </h1><span class="mt-1"><span class="px-2"><a href="https://episphere.github.io/qaqc/iris.csv" class="text-blue-400 text-lg underline" target="_blank">iris.csv</a></span> | <span class="px-2"><a href="https://episphere.github.io/qaqc/iris.json" class="text-blue-400 text-lg underline" target="_blank">iris.json</a></span></span></div>
+            <div class="mt-1 text-gray-300"><em>Fisher,R.A. "The use of multiple measurements in taxonomic problems" Annual Eugenics, 7, Part II, 179-188 (1936) [ <a href="https://onlinelibrary.wiley.com/doi/10.1111/j.1469-1809.1936.tb02137.x" class="text-blue-400 underline" target="_blank">Web Link</a> ]</em></div>
           </li>
-          <li class="my-10">
-            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./mnist.html" class="font-sans tracking-wider text-red-300">MNIST</a>: </h1><span class="px-2 mt-1"><a href="https://drive.google.com/drive/folders/1h-Dx7oEC5Ka_XeIb0V354dvsTDMG629T?usp=sharing" class="text-blue-400 text-lg underline" target="_blank">Images on Google Drive</a></span></div>
-            <div class="mt-1"><em>MNIST handwritten digit database, Yann LeCun, Corinna Cortes and Chris Burges. [ <a href="http://yann.lecun.com/exdb/mnist/" class="text-blue-400 underline" target="_blank">Reference</a> ]</em></div>
+          <li class="mt-8">
+            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./mnist.html" class="font-sans tracking-wider text-yellow-300">MNIST</a>: </h1><span class="px-2 mt-1"><a href="https://drive.google.com/drive/folders/1h-Dx7oEC5Ka_XeIb0V354dvsTDMG629T?usp=sharing" class="text-blue-400 text-lg underline" target="_blank">Images on Google Drive</a></span></div>
+            <div class="mt-1 text-gray-300"><em>MNIST handwritten digit database, Yann LeCun, Corinna Cortes and Chris Burges [ <a href="http://yann.lecun.com/exdb/mnist/" class="text-blue-400 underline" target="_blank">Reference</a> ]</em></div>
           </li>
-          <li class="my-10">
-            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./sequencing.html" class="font-sans tracking-wider text-red-300">Sequencing</a>: </h1><span class="mt-1 px-2 text-lg"> ... </span></div>
-            <div class="mt-1"><em></em></div>
+          <li class="mt-8">
+            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./sequencing.html" class="font-sans tracking-wider text-yellow-300">Sequencing</a>: </h1><span class="mt-1 px-2 text-lg"> ... </span></div>
+            <div class="mt-1 text-gray-300"><em></em></div>
           </li>
-          <li class="my-10">
-            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./timeSeries.html" class="font-sans tracking-wider text-red-300">Time Series</a>: </h1><span class="mt-1 px-2 text-lg"> ... </span></div>
-            <div class="mt-1"><em></em></div>
+          <li class="mt-8">
+            <div class="flex flex-row items-center"><b>-&nbsp;&nbsp;</b><h1 class="text-2xl"><a href="./timeSeries.html" class="font-sans tracking-wider text-yellow-300">Time Series</a>: </h1><span class="mt-1 px-2 text-lg"> ... </span></div>
+            <div class="mt-1 text-gray-300"><em></em></div>
           </li>
         </ul>
       </div>
