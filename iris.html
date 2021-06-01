@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css">
+  <title>TF.js Lab</title>
+</head>
+
+<body class="bg-black">
+  <div class="container grid w-full h-screen max-w-full max-h-screen" style="grid-template-rows: auto auto 1fr;">
+
+    <nav class="bg-gray-800 border-b border-solid border-gray-500">
+      <div class="max-w-full mx-auto px-2 sm:px-6 lg:px-8">
+        <div class="relative flex items-center justify-between h-16">
+          <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+            <div class="hidden sm:block">
+              <div class="flex space-x-4">
+                <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
+                <a href="#" class="bg-gray-900 text-white px-5 py-2 rounded-md text-sm font-medium" aria-current="page">Iris</a>
+    
+                <a href="./mnist.html" class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">MNIST</a>
+    
+                <a href="./sequencing.html" class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Sequencing</a>
+                
+                <a href="./timeSeries.html" class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Time Series</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>      
+    </nav>
+    <header class="bg-gray-800 shadow">
+      <div class="flex items-center mx-auto py-10 px-2 sm:px-6 lg:px-8">
+        <h1 class="text-3xl font-bold text-white">
+          Iris
+        </h1>
+        <!-- <div>
+          <button id="trainCNNBtn" class="w-32 h-16 bg-blue-900 hover:bg-blue-800 text-white mx-10 px-4 rounded" onclick="praful.startTraining()">Train CNN</button>
+        </div> -->
+      </div>
+    </header>
+    <main id="consoleParent" class="h-auto max-h-full overflow-y-auto">
+      <div class="max-w-full px-1">
+        <div class="py-2 sm:px-0">
+          <div id="console" class="px-3 py-3">
+            <p class="text-green-500 font-mono">-- Under Development --</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+<!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.5.1/dist/tfjs-vis.umd.min.js"></script> -->
+</html>

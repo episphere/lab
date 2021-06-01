@@ -1,9 +1,9 @@
 // import * as tf from '@tensorflow/tfjs'
 
-const praful = {}
-praful.mnistDB = {}
-praful.mnist_NUM_CLASSES = 10
-praful.stop = false
+const mnist = {}
+mnist.mnistDB = {}
+mnist.mnist_NUM_CLASSES = 10
+mnist.stop = false
 
 const indexedDBConfig = {
   dbName: "mnistDB",
@@ -43,7 +43,50 @@ const utils = {
     }),
 }
 
-praful.writeToConsole = (text, changeLastLine = false, addSeparator) => {
+const loadHashParams = () => {
+  const hashParams = {}
+  if (window.location.hash.includes("=")) {
+    window.location.hash.slice(1).split('&').forEach(param => {
+      let [key, value] = param.split('=')
+      value = value.replace(/['"]+/g, "") // for when the hash parameter contains quotes.
+      value = decodeURIComponent(value)
+      if (key === "extModules") {
+        try {
+          hashParams[key] = eval(value) // for when the extModules parameter is an array/object.
+        } catch (e) { // If eval doesn't work, just add the value as a string.
+          console.warn("The extModules parameter should be either be a URL without quotes or a proper array containing individual URL(s) inside quotes!", e)
+          hashParams[key] = value
+        }
+      } else {
+        hashParams[key] = value
+      }
+    })
+    loadExtModules(hashParams["extModules"])
+  }
+}
+
+const loadExtModules = (modules) => {
+  modules = modules || hashParams["extModules"]
+
+  const loadModule = (modulePath) => {
+    console.log(`Loading external module at ${modulePath}`)
+    const scriptElement = document.createElement('script')
+    scriptElement.src = modulePath
+    scriptElement.async = ""
+    scriptElement.type = "text/javascript"
+    document.head.appendChild(scriptElement)
+  }
+
+  if (modules) {
+    if (Array.isArray(modules)) {
+      modules.forEach(modulePath => loadModule(modulePath))
+    } else if (typeof (modules) === "string") {
+      loadModule(modules)
+    }
+  }
+}
+
+mnist.writeToConsole = (text, changeLastLine = false, addSeparator) => {
   if (changeLastLine) {
     document.getElementById("console").lastElementChild.innerText = text
   } else {
@@ -65,18 +108,18 @@ praful.writeToConsole = (text, changeLastLine = false, addSeparator) => {
       .insertAdjacentHTML('beforeend', `<hr class="my-3 border-t-2 border-dashed border-green-700" />`)
     }
   }
-  document.getElementById("consoleParent").scrollTop = !praful.consoleScrolled ? document.getElementById("consoleParent").scrollHeight - document.getElementById("consoleParent").offsetHeight : document.getElementById("consoleParent").scrollTop
+  document.getElementById("consoleParent").scrollTop = !mnist.consoleScrolled ? document.getElementById("consoleParent").scrollHeight - document.getElementById("consoleParent").offsetHeight : document.getElementById("consoleParent").scrollTop
 }
 
-praful.recordScrolled = () => {
+mnist.recordScrolled = () => {
   if (document.getElementById("consoleParent").scrollTop === (document.getElementById("consoleParent").scrollHeight - document.getElementById("consoleParent").offsetHeight)) {
-    praful.consoleScrolled = false
+    mnist.consoleScrolled = false
   } else {
-    praful.consoleScrolled = true
+    mnist.consoleScrolled = true
   }
 }
 
-praful.setupIndexedDB = (
+mnist.setupIndexedDB = (
   dbName,
   objectStoreName,
   objectStoreOpts = {},
@@ -105,25 +148,25 @@ praful.setupIndexedDB = (
     }
   })
 
-praful.writeToIndexedDB = (objectStoreName, obj) =>
+mnist.writeToIndexedDB = (objectStoreName, obj) =>
   new Promise((resolve) => {
-    const objectStore = praful.mnistDB
+    const objectStore = mnist.mnistDB
       .transaction(objectStoreName, "readwrite")
       .objectStore(objectStoreName)
     objectStore.put(obj).onsuccess = ({ target }) => resolve(target.result)
   })
 
-praful.getRecordsCount = (objectStoreName) =>
+mnist.getRecordsCount = (objectStoreName) =>
   new Promise((resolve) => {
-    const objectStore = praful.mnistDB
+    const objectStore = mnist.mnistDB
       .transaction(objectStoreName, "readwrite")
       .objectStore(objectStoreName)
     objectStore.count().onsuccess = ({ target }) => resolve(target.result)
   })
 
-praful.getFromIndexedDB = (objectStore, queryOpts = {}) =>
+mnist.getFromIndexedDB = (objectStore, queryOpts = {}) =>
   new Promise((resolve, reject) => {
-    const objectStoreTransaction = praful.mnistDB
+    const objectStoreTransaction = mnist.mnistDB
       .transaction(objectStore, "readonly")
       .objectStore(objectStore)
 
@@ -239,15 +282,15 @@ praful.getFromIndexedDB = (objectStore, queryOpts = {}) =>
     }
   })
 
-praful.setupWorker = () => {
-  praful.worker = new Worker("./worker.js")
-  praful.worker.onmessage = (e) => {
+mnist.setupWorker = () => {
+  mnist.worker = new Worker("./mnistWorker.js")
+  mnist.worker.onmessage = (e) => {
     const { op, data } = e.data
     switch (op) {
       case "loadManifest":
         if (data.message === "idxdb_write") {
           const consoleMessage = `${data.recordsStored}/${data.totalImages} records written to IndexedDB`
-          praful.writeToConsole(consoleMessage, true)
+          mnist.writeToConsole(consoleMessage, true)
         } else if (data.message === "idxdb_success") {
           const manifestLoadedEvent = new Event("manifestLoaded")
           document.dispatchEvent(manifestLoadedEvent)
@@ -257,8 +300,8 @@ praful.setupWorker = () => {
   }
 }
 
-praful.loadManifest = (filename, objectStoreName) => new Promise (resolve => {
-  praful.worker.postMessage({
+mnist.loadManifest = (filename, objectStoreName) => new Promise (resolve => {
+  mnist.worker.postMessage({
     op: "loadManifest",
     data: {
       filename,
@@ -269,11 +312,11 @@ praful.loadManifest = (filename, objectStoreName) => new Promise (resolve => {
   document.addEventListener("manifestLoaded", resolve)
 })
 
-praful.startTraining = async () => {
+mnist.startTraining = async () => {
   document.getElementById("console").innerHTML = ""
-  praful.writeToConsole("Initializing...")
-  praful.stop = false
-  praful.setupWorker()
+  mnist.writeToConsole("Initializing...")
+  mnist.stop = false
+  mnist.setupWorker()
 
   document.getElementById("trainCNNBtn").innerText = "Stop training"
   document
@@ -282,19 +325,19 @@ praful.startTraining = async () => {
   document
     .getElementById("trainCNNBtn")
     .classList.replace("hover:bg-blue-800", "hover:bg-red-800")
-  document.getElementById("trainCNNBtn").onclick = praful.stopTraining
+  document.getElementById("trainCNNBtn").onclick = mnist.stopTraining
 
-  praful.writeToConsole("Setting up IndexedDB...")
+  mnist.writeToConsole("Setting up IndexedDB...")
   const trainingObjectStoreName = "trainingData"
-  praful.mnistDB = await praful.setupIndexedDB(
+  mnist.mnistDB = await mnist.setupIndexedDB(
     indexedDBConfig.dbName,
     trainingObjectStoreName,
     indexedDBConfig.objectStoreOpts,
     indexedDBConfig.objectStoreIndex
   )
-  if ((await praful.getRecordsCount(trainingObjectStoreName)) !== manifests["training"].count
+  if ((await mnist.getRecordsCount(trainingObjectStoreName)) !== manifests["training"].count
   ) {
-    praful.writeToConsole("Fetching training manifest...")
+    mnist.writeToConsole("Fetching training manifest...")
     // const trainingManifestRequestURL = `${filePickerEndpoint}?filename=${manifests["training"].filename}`
     // const trainingCSV = await (
     //   await utils.request(trainingManifestRequestURL, {}, false)
@@ -306,24 +349,24 @@ praful.startTraining = async () => {
     // for (const line of csvLines) {
     //   if (idx !== 0) {
     //     const [filename, label] = line.split(",").map((x) => x.trim())
-    //     await praful.writeToIndexedDB(trainingObjectStoreName, {
+    //     await mnist.writeToIndexedDB(trainingObjectStoreName, {
     //       filename,
     //       label,
     //     })
-    praful.writeToConsole(`0 records written to IndexedDB`)
-    await praful.loadManifest(manifests["training"].filename, trainingObjectStoreName)
+    mnist.writeToConsole(`0 records written to IndexedDB`)
+    await mnist.loadManifest(manifests["training"].filename, trainingObjectStoreName)
 
     //   }
     //   idx += 1
     // }
   } else {
-    praful.writeToConsole("Training data already present in IndexedDB")
+    mnist.writeToConsole("Training data already present in IndexedDB")
   }
-  praful.visor = tfvis.visor()
-  praful.trainModel()
+  mnist.visor = tfvis.visor()
+  mnist.trainModel()
 }
 
-praful.createModel = () => {
+mnist.createModel = () => {
   const model = tf.sequential()
 
   // The first layer of the convolutional neural network plays a dual role:
@@ -356,7 +399,7 @@ praful.createModel = () => {
   return model
 }
 
-praful.getBatch = async (
+mnist.getBatch = async (
   objectStoreName,
   offset,
   limit,
@@ -365,7 +408,7 @@ praful.getBatch = async (
   const xs = []
   const labels = []
 
-  const { result: files } = await praful.getFromIndexedDB(objectStoreName, {
+  const { result: files } = await mnist.getFromIndexedDB(objectStoreName, {
     offset,
     limit,
   })
@@ -417,7 +460,7 @@ praful.getBatch = async (
   const poolLimit = 50
   for (const file of files) {
     const p = Promise.resolve().then(() => {
-      if (!praful.stop) {
+      if (!mnist.stop) {
         return getTensorFromImage(file, files)
       } else {
         return Promise.resolve()
@@ -425,7 +468,7 @@ praful.getBatch = async (
     })
     ret.push(p)
 
-    if (poolLimit <= files.length && !praful.stop) {
+    if (poolLimit <= files.length && !mnist.stop) {
       const e = p.then(() => {
         executing.splice(executing.indexOf(e), 1)
         callback(xs)
@@ -441,26 +484,26 @@ praful.getBatch = async (
   return tf.tidy(() => {
     return {
       'xs': tf.tensor4d(xs, [xs.length, 28, 28, 1]),
-      'labels': tf.oneHot(labels, praful.mnist_NUM_CLASSES),
+      'labels': tf.oneHot(labels, mnist.mnist_NUM_CLASSES),
     }
   })
 }
 
-praful.trainModel = async () => {
-  praful.writeToConsole("Creating model architecture:")
-  praful.mnistModel = praful.createModel()
+mnist.trainModel = async () => {
+  mnist.writeToConsole("Creating model architecture:")
+  mnist.mnistModel = mnist.createModel()
   
   const optimizer = "rmsprop"
   const loss = "categoricalCrossentropy"
-  praful.mnistModel.compile({
+  mnist.mnistModel.compile({
     optimizer,
     loss,
     metrics: ["accuracy", "mse"],
   })
   
-  praful.writeToConsole(`Compiled model with ${optimizer} optimizer and ${loss} loss, ready for training`)
-  const surface = praful.visor.surface({ name: 'Model Summary', tab: 'Model Inspection'})
-  tfvis.show.modelSummary(surface, praful.mnistModel)
+  mnist.writeToConsole(`Compiled model with ${optimizer} optimizer and ${loss} loss, ready for training`)
+  const surface = mnist.visor.surface({ name: 'Model Summary', tab: 'Model Inspection'})
+  tfvis.show.modelSummary(surface, mnist.mnistModel)
 
   const imagesPerGroup = 1000
   const validationSplit = 0.15
@@ -468,20 +511,20 @@ praful.trainModel = async () => {
   const batchSize = 100
   const epochsToTrainFor = 3
   const totalNumEpochs = totalNumGroups * epochsToTrainFor
-  praful.modelTrainingSurface = { name: "Model Training", tab: "Training" }
-  const metricsVisualizerCallback = tfvis.show.fitCallbacks(praful.modelTrainingSurface, ['loss', 'acc'],['onEpochEnd'])
-  praful.currentEpochNum = 0
+  mnist.modelTrainingSurface = { name: "Model Training", tab: "Training" }
+  const metricsVisualizerCallback = tfvis.show.fitCallbacks(mnist.modelTrainingSurface, ['loss', 'acc'],['onEpochEnd'])
+  mnist.currentEpochNum = 0
   
   for (let currentBatchNum = 0; currentBatchNum < totalNumGroups; currentBatchNum++ ) {
-    if (!praful.stop) {
-      praful.writeToConsole(`Starting group ${currentBatchNum + 1}/${totalNumGroups}`, false, "before")
-      await praful.trainForEpoch(imagesPerGroup, currentBatchNum, batchSize, validationSplit, epochsToTrainFor, metricsVisualizerCallback)
+    if (!mnist.stop) {
+      mnist.writeToConsole(`Starting group ${currentBatchNum + 1}/${totalNumGroups}`, false, "before")
+      await mnist.trainForEpoch(imagesPerGroup, currentBatchNum, batchSize, validationSplit, epochsToTrainFor, metricsVisualizerCallback)
     }
   }
-  praful.writeToConsole("Model successfully trained!")
+  mnist.writeToConsole("Model successfully trained!")
 }
 
-praful.trainForEpoch = async (
+mnist.trainForEpoch = async (
   imagesPerGroup,
   currentBatchNum,
   batchSize,
@@ -489,22 +532,22 @@ praful.trainForEpoch = async (
   epochsToTrainFor,
   metricsVisualizerCallback
 ) => {
-  praful.writeToConsole(
+  mnist.writeToConsole(
     `0/${imagesPerGroup} images fetched for current group`,
     true
   )
   const imageFetchCallback = (xs) => {
-    if (!praful.stop) {
-      praful.writeToConsole(
+    if (!mnist.stop) {
+      mnist.writeToConsole(
         `${xs.length}/${imagesPerGroup} images fetched for current group`,
         true
       )
     }
   }
-  const batchData = await praful.getBatch("trainingData", currentBatchNum * imagesPerGroup, imagesPerGroup, imageFetchCallback)
+  const batchData = await mnist.getBatch("trainingData", currentBatchNum * imagesPerGroup, imagesPerGroup, imageFetchCallback)
   let trainBatchCount = 0
   console.log(batchData)
-  await praful.mnistModel.fit(batchData.xs, batchData.labels, {
+  await mnist.mnistModel.fit(batchData.xs, batchData.labels, {
     batchSize,
     validationSplit,
     epochs: epochsToTrainFor,
@@ -512,26 +555,26 @@ praful.trainForEpoch = async (
     callbacks: {
       onBatchEnd: (batch, logs) => {
         trainBatchCount++
-        praful.writeToConsole(
-          `Epoch ${praful.currentEpochNum} ${(trainBatchCount / (imagesPerGroup/batchSize) * 100).toFixed(1)}% complete: Loss = ${logs.loss} ; Accuracy = ${logs.acc}`
+        mnist.writeToConsole(
+          `Epoch ${mnist.currentEpochNum} ${(trainBatchCount / (imagesPerGroup/batchSize) * 100).toFixed(1)}% complete: Loss = ${logs.loss} ; Accuracy = ${logs.acc}`
         )
       },
       onEpochBegin: () => {
-        praful.currentEpochNum++
+        mnist.currentEpochNum++
         trainBatchCount = 0
       },
       onEpochEnd: (epoch, logs) => {
         metricsVisualizerCallback.onEpochEnd(epoch, logs)
-        praful.writeToConsole(`Training Epoch ${praful.currentEpochNum} completed`)
-        praful.writeToConsole(`Validation Loss = ${logs.val_loss} ; Validation Accuracy = ${logs.val_acc}`)
+        mnist.writeToConsole(`Training Epoch ${mnist.currentEpochNum} completed`)
+        mnist.writeToConsole(`Validation Loss = ${logs.val_loss} ; Validation Accuracy = ${logs.val_acc}`)
       }
     }
   })
 }
 
-praful.stopTraining = () => {
-  praful.stop = true
-  praful.worker.terminate()
+mnist.stopTraining = () => {
+  mnist.stop = true
+  mnist.worker.terminate()
   document.getElementById("trainCNNBtn").innerText = "Train CNN"
   document
     .getElementById("trainCNNBtn")
@@ -539,6 +582,9 @@ praful.stopTraining = () => {
   document
     .getElementById("trainCNNBtn")
     .classList.replace("hover:bg-red-800", "hover:bg-blue-800")
-  document.getElementById("trainCNNBtn").onclick = praful.startTraining
-  praful.writeToConsole("Terminated. ")
+  document.getElementById("trainCNNBtn").onclick = mnist.startTraining
+  mnist.writeToConsole("Terminated. ")
 }
+
+window.onload = loadHashParams
+window.onhashchange = loadHashParams
