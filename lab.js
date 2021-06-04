@@ -1,1 +1,2 @@
-console.log('lab.js loaded')
+console.log('loading lab.js')
+lab={} // starting gently :-P
