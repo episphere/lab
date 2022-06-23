@@ -379,21 +379,28 @@ mnist.createModel = () => {
     tf.layers.conv2d({
       inputShape: [28, 28, 1],
       kernelSize: 5,
-      filters: 8,
-      activation: "relu",
+      filters: 6,
+      activation: "tanh",
     })
   )
 
-  model.add(tf.layers.maxPooling2d({ poolSize: 2, strides: 2 }))
+  // Changed to Average Pooling Layer
+  model.add(tf.layers.avgPool2d({ poolSize: 2, strides: 2 }))
 
+  // Changed to depthwiseConv2d layer
   model.add(
-    tf.layers.conv2d({ kernelSize: 5, filters: 16, activation: "relu" })
+    tf.layers.depthwiseConv2d({ kernelSize: 5, filters: 16, activation: "tanh" })
   )
+  
+  
+  // Changed to Average Pooling Layer
+  model.add(tf.layers.avgPool2d({ poolSize: 2, strides: 2 }))
 
-  model.add(tf.layers.maxPooling2d({ poolSize: 2, strides: 2 }))
 
   model.add(tf.layers.flatten({}))
-
+  
+  // added additional dense layer
+  model.add(tf.layers.dense({ units: 84, activation: "tanh" }))
   model.add(tf.layers.dense({ units: 10, activation: "softmax" }))
 
   return model
