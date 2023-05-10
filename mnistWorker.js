@@ -151,7 +151,11 @@ const loadManifest = async (op, data) => {
     await fetch(trainingManifestRequestURL, {}, false)
   ).text()
 
-  const csvLines = trainingCSV.split("\n")
+  let csvLines = trainingCSV.split("\n")
+  if (data.subsetSize) {
+    csvLines = csvLines.sort(() => 0.5 - Math.random()).slice(0, data.subsetSize)
+  }
+
   let recordsStored = 0
   mnistDB = mnistDB || (await fetchIndexedDBInstance())
   await Promise.all(
