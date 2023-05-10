@@ -8,7 +8,7 @@ mnist.mnist_NUM_CLASSES = 10
 mnist.stop = false
 
 // const GUN_SERVER = "http://localhost:8765/gun"
-const GUN_SERVER = "https://617fba01b37d3962861a7e16f2210beb.loophole.site/gun"
+const GUN_SERVER = "https://8921dc02f49ce3a34e94c760fe1b7b54.loophole.site/gun"
 
 const indexedDBConfig = {
   dbName: "mnistDB",
