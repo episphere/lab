@@ -312,12 +312,13 @@ webFed.sendDataToPeer = (peerId, data) => {
   webFed.currentFederation.clients[peerId].dataChannel.send(data)
 }
 
-webFed.broadcastToAllPeers = (data) => {
+webFed.broadcastToAllPeers = (federationId, clientId, data) => {
   if (typeof(data) === 'object') {
     data = JSON.stringify(data)
   }
   const peersCommunicated = []
-  Object.values(webFed.currentFederation.clients).forEach(peer => {
+  const allPeers = webFed.getAllPeers(federationId, clientId)
+  Object.values(allPeers).forEach(peer => {
     if (peer.dataChannel && peer.dataChannel.readyState === 'open') {
       peer.dataChannel.send(data)
       peersCommunicated.push(peer)
@@ -327,6 +328,7 @@ webFed.broadcastToAllPeers = (data) => {
 }
 
 webFed.listenForMessageFromPeer = (peerId, cb, once=true) => {
+  console.log(webFed.currentFederation.clients)
   webFed.currentFederation.clients[peerId].dataChannel.addEventListener("message", cb, {
     once
   })

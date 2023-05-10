@@ -586,7 +586,7 @@ mnist.trainForEpoch = async (
           }).flat()
           weightsToBeShared.push(layerWeights)
         })
-        mnist.broadcastToAllPeers({
+        mnist.broadcastToAllPeers(localStorage.currentFederationId, localStorage.clientId, {
           epoch,
           weights: weightsToBeShared
         })
@@ -671,8 +671,8 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
       }))
     }
 
-    if (Promise.all(responsesReceived)) {
-      console.log(responsesReceived)
+    if (Promise.all(responseFromPeers)) {
+      console.log(responseFromPeers)
       // Aggregate weights and move to the next batch/epoch.
       // for (let peer of connectedPeers) {
       //   responsesReceived[peer] = new Promise(resolve => {
