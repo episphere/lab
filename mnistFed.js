@@ -8,7 +8,7 @@ mnist.mnist_NUM_CLASSES = 10
 mnist.stop = false
 
 // const GUN_SERVER = "http://localhost:8765/gun"
-const GUN_SERVER = "https://d6a054a208765f61a368c5f3fe73e4c5.loophole.site/gun"
+const GUN_SERVER = "https://fbbc60265ae9cfb3cd08d9fc94a0c2ac.loophole.site/gun"
 
 const indexedDBConfig = {
   dbName: "mnistDB",
@@ -612,30 +612,30 @@ mnist.stopTraining = () => {
   mnist.writeToConsole("Terminated. ")
 }
 
-mnist.trainLR = async (iid=true) => {
+mnist.trainLR = async (datasetIndex=1, iid=true) => {
   const prefixFilePathString = iid ? 'iid' : 'noniid'
-  const irisData = await import(`./iris_${prefixFilePathString}_1.json`)
+  const irisData = await (await fetch(`https://episphere.github.io/lab/iris_${prefixFilePathString}_${datasetIndex}.json`)).json()
   
   const trainSplit = 0.8
   const trainSplitIndex = Math.floor(irisData.length) * trainSplit
   const irisTrainingData = irisData.sort(() => Math.random() - 0.5).slice(0,trainSplitIndex)
   const irisTestData = irisData.slice(trainSplitIndex)
 
-  const trainingData = tf.tensor2d(irisTrainingData.map(({sepalLength, sepalWidth, petalLength, petalWidth}) => [
-    sepalLength, sepalWidth, petalLength, petalWidth
+  const trainingData = tf.tensor2d(irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => [
+    sepal_length, sepal_width, petal_length, petal_width
   ]))
   
-  const trainingLabels = tf.tensor2d(iris.map(({species}) => [
+  const trainingLabels = tf.tensor2d(irisTrainingData.map(({species}) => [
     species === "setosa" ? 1 : 0,
     species === "virginica" ? 1 : 0,
     species === "versicolor" ? 1 : 0,
   ]))
   
-  const testData = tf.tensor2d(irisTestData.map(({sepalLength, sepalWidth, petalLength, petalWidth}) => [
-    sepalLength, sepalWidth, petalLength, petalWidth
+  const testData = tf.tensor2d(irisTestData.map(({sepal_length, sepal_width, petal_length, petal_width}) => [
+    sepal_length, sepal_width, petal_length, petal_width
   ]))
   
-  const model = tf.sequential()
+  const model = tf.sequential() 
 
   model.add(tf.layers.dense({
     inputShape: [4],
@@ -656,21 +656,45 @@ mnist.trainLR = async (iid=true) => {
     optimizer: tf.train.adam(.06),
     metrics: ["accuracy", "precision"]
   })
-
+  console.log(trainingData, trainingLabels)
   // train/fit our network
-  model.fit(trainingData, trainingLabels, {
-    epochs: 100,
-    batchSize: 20,
-    callbacks: [
-      function onEpochEnd(e, logs) {
-        console.log(e, logs)
-      }
-    ]
-  })
-    .then((history) => {
-      console.log(history)
-      model.predict(testData).print()
-    })
+
+  for (let epoch = 0; epoch < 10; epoch++) {
+    const gradientUpdate = await model.trainOnBatch(trainingData, trainingLabels)
+    const layerWiseWeights = model.trainableWeights.map(layer => layer.val.dataSync())
+    const peersCommunicated = await webFed.broadcastToAllPeers(layerWiseWeights)
+    let responseFromPeers = []
+
+    for (let peer of peersCommunicated) {
+      responseFromPeers.push(new Promise(resolve => {
+        webFed.listenForMessageFromPeer(peer, resolve, true)
+      }))
+    }
+
+    if (Promise.all(responsesReceived)) {
+      console.log(responsesReceived)
+      // Aggregate weights and move to the next batch/epoch.
+      // for (let peer of connectedPeers) {
+      //   responsesReceived[peer] = new Promise(resolve => {
+      //     webFed.listenForMessageFromPeer(peer, resolve, true)
+      //   })
+      // }
+    }
+  }
+
+  // model.fit(trainingData, trainingLabels, {
+  //   epochs: 100,
+  //   batchSize: 20,
+  //   callbacks: {
+  //     onEpochEnd: (e, logs) => {
+  //       console.log(model.trainableWeights, e, logs)
+  //     }
+  //   }
+  // })
+  //   .then((history) => {
+  //     console.log(history)
+  //     model.predict(testData).print()
+  //   })
 }
 
 // Federated functions
@@ -751,8 +775,9 @@ mnist.ui.joinFederationHandler = async (federationId, clientId=localStorage.clie
 }
 
 mnist.ui.trainLRHandler = (e) => {
+  const datasetSelector = document.getElementById("datasetSelector")
   const iidCheckbox = document.getElementById("iidCheckbox")
-  mnist.trainLR(iidCheckbox.checked)
+  mnist.trainLR(datasetSelector.value, iidCheckbox.checked)
 }
 
 window.onload = async () => {

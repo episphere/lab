@@ -51,6 +51,17 @@ webFed.getAllPeers = async (federationId=webFed.currentFederation.id, selfClient
   return peers
 }, {})
 
+webFed.getConnectedPeers = async(federationId=webFed.currentFederation.id, selfClientId) => {
+  const peers = await webFed.getAllPeers(federationId, selfClientId)
+  const connectedPeers = Object.keys(peers).reduce((newPeerIds, peerId) => {
+    if (peers[peerId].connectionState === "connected") {
+      newPeerIds.push(peerId)
+    }
+    return newPeerIds
+  }, [])
+  return connectedPeers
+}
+
 webFed.getDisconnectedPeers = async (federationId=webFed.currentFederation.id, selfClientId) => {
   const peers = await webFed.getAllPeers(federationId, selfClientId)
   const disconnectedPeers = Object.keys(peers).reduce((newPeerIds, peerId) => {
@@ -305,10 +316,19 @@ webFed.broadcastToAllPeers = (data) => {
   if (typeof(data) === 'object') {
     data = JSON.stringify(data)
   }
+  const peersCommunicated = []
   Object.values(webFed.currentFederation.clients).forEach(peer => {
-    if (peer.dataChannel) {
+    if (peer.dataChannel && peer.dataChannel.readyState === 'open') {
       peer.dataChannel.send(data)
+      peersCommunicated.push(peer)
     }
+  })
+  return peersCommunicated
+}
+
+webFed.listenForMessageFromPeer = (peerId, cb, once=true) => {
+  webFed.currentFederation.clients[peerId].dataChannel.addEventListener("message", cb, {
+    once
   })
 }
 
