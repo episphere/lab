@@ -351,7 +351,6 @@ webFed.initialize = async (gunServerPath, clientId, currentFederationId) => {
       
       if (currentFederationId) {
         await webFed.updateAllClientsList(currentFederationId, clientId)
-        console.log(webFed.currentFederation.clients)
         if (webFed.currentFederation.clients?.[clientId] && webFed.currentFederation.id !== currentFederationId) {
           
           if (webFed.currentFederation.id) {
