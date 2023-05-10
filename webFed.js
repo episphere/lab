@@ -44,7 +44,7 @@ webFed.updateAllClientsList = async (federationId=webFed.currentFederation.id, s
   }
 }
 
-webFed.getAllPeers = async (federationId=webFed.currentFederation.id, selfClientId) => Object.keys(webFed.currentFederation.clients).reduce((peers, clientId)  => {
+webFed.getAllPeers = (federationId=webFed.currentFederation.id, selfClientId) => Object.keys(webFed.currentFederation.clients).reduce((peers, clientId)  => {
   if (clientId !== selfClientId) {
     peers[clientId] = webFed.currentFederation.clients[clientId]
   }
@@ -312,12 +312,12 @@ webFed.sendDataToPeer = (peerId, data) => {
   webFed.currentFederation.clients[peerId].dataChannel.send(data)
 }
 
-webFed.broadcastToAllPeers = (federationId, clientId, data) => {
+webFed.broadcastToAllPeers = async (federationId, clientId, data) => {
   if (typeof(data) === 'object') {
     data = JSON.stringify(data)
   }
   const peersCommunicated = []
-  const allPeers = webFed.getAllPeers(federationId, clientId)
+  const allPeers = await webFed.getAllPeers(federationId, clientId)
   Object.values(allPeers).forEach(peer => {
     if (peer.dataChannel && peer.dataChannel.readyState === 'open') {
       peer.dataChannel.send(data)
@@ -351,7 +351,7 @@ webFed.initialize = async (gunServerPath, clientId, currentFederationId) => {
       
       if (currentFederationId) {
         await webFed.updateAllClientsList(currentFederationId, clientId)
-        
+        console.log(webFed.currentFederation.clients)
         if (webFed.currentFederation.clients?.[clientId] && webFed.currentFederation.id !== currentFederationId) {
           
           if (webFed.currentFederation.id) {
@@ -367,9 +367,10 @@ webFed.initialize = async (gunServerPath, clientId, currentFederationId) => {
       document.dispatchEvent(new CustomEvent('federationsChanged'))
     }
   }
+  
   await refreshFederationsFromDB()
-  await gunDB.trackObject([GUN_TLN_KEY, GUN_KEYS_SPEC['fedDetails']], refreshFederationsFromDB)
-
+  gunDB.trackObject([GUN_TLN_KEY, GUN_KEYS_SPEC['fedDetails']], refreshFederationsFromDB)
+  
   return { clientId, currentFederationId }
 }
 

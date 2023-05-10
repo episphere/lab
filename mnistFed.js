@@ -8,7 +8,7 @@ mnist.mnist_NUM_CLASSES = 10
 mnist.stop = false
 
 // const GUN_SERVER = "http://localhost:8765/gun"
-const GUN_SERVER = "https://fbbc60265ae9cfb3cd08d9fc94a0c2ac.loophole.site/gun"
+const GUN_SERVER = "https://617fba01b37d3962861a7e16f2210beb.loophole.site/gun"
 
 const indexedDBConfig = {
   dbName: "mnistDB",
@@ -660,6 +660,7 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
   // train/fit our network
 
   for (let epoch = 0; epoch < 10; epoch++) {
+    console.log("Epoch", epoch)
     const gradientUpdate = await model.trainOnBatch(trainingData, trainingLabels)
     const layerWiseWeights = model.trainableWeights.map(layer => layer.val.dataSync())
     const peersCommunicated = await webFed.broadcastToAllPeers(layerWiseWeights)
@@ -671,15 +672,14 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
       }))
     }
 
-    if (Promise.all(responseFromPeers)) {
-      console.log(responseFromPeers)
+    const receivedWeights = await Promise.all(responseFromPeers)
+    console.log(receivedWeights)
       // Aggregate weights and move to the next batch/epoch.
       // for (let peer of connectedPeers) {
       //   responsesReceived[peer] = new Promise(resolve => {
       //     webFed.listenForMessageFromPeer(peer, resolve, true)
       //   })
       // }
-    }
   }
 
   // model.fit(trainingData, trainingLabels, {
@@ -782,9 +782,9 @@ mnist.ui.trainLRHandler = (e) => {
 
 window.onload = async () => {
   loadHashParams()
-  const {clientId, federationId} = await webFed.initialize(GUN_SERVER, localStorage.clientId, localStorage.currentFederationId)
+  const {clientId, currentFederationId} = await webFed.initialize(GUN_SERVER, localStorage.clientId, localStorage.currentFederationId)
   localStorage.clientId = clientId
-  localStorage.currentFederationId = federationId
+  localStorage.currentFederationId = currentFederationId
   document.getElementById("newFederationBtn").addEventListener('click', mnist.ui.createFederationHandler)
   document.getElementById("trainCNNBtn").addEventListener('click', mnist.ui.trainLRHandler)
 
