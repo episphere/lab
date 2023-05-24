@@ -7,8 +7,7 @@ mnist.mnistDB = {}
 mnist.mnist_NUM_CLASSES = 10
 mnist.stop = false
 
-// const GUN_SERVER = "http://localhost:8765/gun"
-const GUN_SERVER = "https://ff3ecfae60ffd5d95668f3d77eb4c88e.loophole.site/gun"
+let GUN_SERVER = "http://localhost:8765/gun"
 
 const indexedDBConfig = {
   dbName: "mnistDB",
@@ -305,18 +304,19 @@ mnist.setupWorker = () => {
   }
 }
 
-mnist.loadManifest = (filename, objectStoreName, subsetSize) => new Promise(resolve => {
-  mnist.worker.postMessage({
-    op: "loadManifest",
-    data: {
-      filename,
-      objectStoreName,
-      subsetSize
-    },
-  })
+mnist.loadManifest = (filename, objectStoreName, subsetSize) => 
+  new Promise(resolve => {
+    mnist.worker.postMessage({
+      op: "loadManifest",
+      data: {
+        filename,
+        objectStoreName,
+        subsetSize
+      },
+    })
 
-  document.addEventListener("manifestLoaded", resolve)
-})
+    document.addEventListener("manifestLoaded", resolve)
+  })
 
 const subsetSize = 5000
 mnist.startTraining = async () => {
@@ -612,6 +612,66 @@ mnist.stopTraining = () => {
   mnist.writeToConsole("Terminated. ")
 }
 
+mnist.trainLRBasic = async(datasetIndex=1, iid=true) => {
+  const prefixFilePathString = iid ? 'iid' : 'noniid'
+  const irisData = await (await fetch(`https://episphere.github.io/lab/iris_${prefixFilePathString}_${datasetIndex}.json`)).json()
+  
+  const trainSplit = 0.8
+  const trainSplitIndex = Math.floor(irisData.length) * trainSplit
+  const irisTrainingData = irisData.sort(() => Math.random() - 0.5).slice(0,trainSplitIndex)
+  const irisTestData = irisData.slice(trainSplitIndex)
+  
+  // const trainingData = irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => tf.tensor1d([
+  //   sepal_length, sepal_width, petal_length, petal_width
+  // ]))
+  
+  // const trainingLabels = irisTrainingData.map(({species}) => tf.tensor1d([
+  //   species === "setosa" ? 1 : 0,
+  //   species === "virginica" ? 1 : 0,
+  //   species === "versicolor" ? 1 : 0,
+  // ]))
+  const trainingData = tf.tensor2d(irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => [
+    sepal_length, sepal_width, petal_length, petal_width
+  ]))
+  const trainingLabels = irisTrainingData.map(({species}) => tf.tensor1d([
+    species === "setosa" ? 1 : 0,
+    species === "virginica" ? 1 : 0,
+    species === "versicolor" ? 1 : 0,
+  ]))
+  
+  const testData = tf.tensor2d(irisTestData.map(({sepal_length, sepal_width, petal_length, petal_width}) => [
+    sepal_length, sepal_width, petal_length, petal_width
+  ]))
+
+  const weights = tf.tidy(() => tf.variable(tf.randomNormal([4,1], 0, 1.0), true))
+  const bias = tf.tidy(() => tf.variable(tf.randomNormal([1], 0, 1.0), true))
+
+  console.log("Weights before:", weights.dataSync())
+  console.log("Bias before", bias.dataSync())
+
+  const model = (trainData) =>
+     trainData.matMul(weights)
+      .add(bias)
+      .sigmoid()
+
+  const lossFunc = (predicted, actual) => tf.metrics.categoricalCrossentropy(actual, predicted)
+
+  const optimizer = tf.train.adam(0.001)
+
+  for (let epoch=0; epoch<100; epoch++) {
+    console.log("===================================================================")
+    console.log("Epoch", epoch)
+    const loss = tf.tidy(() => optimizer.minimize(() => lossFunc(model(trainingData), trainingLabels), true))
+    console.log("Loss:", loss.dataSync())
+    console.log("Weights after", weights.dataSync())
+    console.log("Bias after", bias.dataSync())
+    // console.log(tf.round(model(trainingData)).dataSync())
+    console.log(lossFunc(model(trainingData), trainingLabels).dataSync())
+    const accuracy = tf.tidy(() => tf.metrics.categoricalAccuracy(trainingLabels, tf.round(model(trainingData))))
+    console.log("Accuracy:", accuracy.dataSync())
+  }
+}
+
 mnist.trainLR = async (datasetIndex=1, iid=true) => {
   const prefixFilePathString = iid ? 'iid' : 'noniid'
   const irisData = await (await fetch(`https://episphere.github.io/lab/iris_${prefixFilePathString}_${datasetIndex}.json`)).json()
@@ -621,6 +681,15 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
   const irisTrainingData = irisData.sort(() => Math.random() - 0.5).slice(0,trainSplitIndex)
   const irisTestData = irisData.slice(trainSplitIndex)
 
+  // const trainingData = irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => tf.tensor1d([
+  //   sepal_length, sepal_width, petal_length, petal_width
+  // ]))
+  
+  // const trainingLabels = irisTrainingData.map(({species}) => tf.tensor1d([
+  //   species === "setosa" ? 1 : 0,
+  //   species === "virginica" ? 1 : 0,
+  //   species === "versicolor" ? 1 : 0,
+  // ]))
   const trainingData = tf.tensor2d(irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => [
     sepal_length, sepal_width, petal_length, petal_width
   ]))
@@ -634,54 +703,72 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
   const testData = tf.tensor2d(irisTestData.map(({sepal_length, sepal_width, petal_length, petal_width}) => [
     sepal_length, sepal_width, petal_length, petal_width
   ]))
+
+  const testLabels = tf.tensor2d(irisTestData.map(({species}) => [
+    species === "setosa" ? 1 : 0,
+    species === "virginica" ? 1 : 0,
+    species === "versicolor" ? 1 : 0,
+  ]))
   
   const model = tf.sequential() 
 
   model.add(tf.layers.dense({
     inputShape: [4],
-    activation: "sigmoid",
-    units: 5,
+    activation: 'softmax',
+    units: 3
   }))
-  model.add(tf.layers.dense({
-    inputShape: [5],
-    activation: "sigmoid",
-    units: 3,
-  }))
-  model.add(tf.layers.dense({
-    activation: "softmax",
-    units: 3,
-  }))
+  // model.add(tf.layers.dense({
+  //   inputShape: [5],
+  //   activation: "sigmoid",
+  //   units: 3,
+  // }))
+  // model.add(tf.layers.dense({
+  //   activation: "softmax",
+  //   units: 3,
+  // }))
   model.compile({
-    loss: "meanSquaredError",
-    optimizer: tf.train.adam(.06),
-    metrics: ["accuracy", "precision"]
+    loss: "categoricalCrossentropy",
+    optimizer: tf.train.adam(.0008),
+    metrics: ["accuracy"]
   })
-  console.log(trainingData, trainingLabels)
+  model.summary()
   // train/fit our network
 
   for (let epoch = 0; epoch < 10; epoch++) {
     console.log("Epoch", epoch)
-    const gradientUpdate = await model.trainOnBatch(trainingData, trainingLabels)
+    // for (let row in trainingData) {
+    //   const gradientUpdate = await model.trainOnBatch(trainingData[row], trainingLabels[row])
+    // }
+    const gradientUpdate = await model.fit(trainingData, trainingLabels, {
+      batchSize: irisTrainingData.length,
+      epochs: epoch+1,
+      initialEpoch: epoch
+    })
+    console.log("Loss:",gradientUpdate.history.loss[0])
+    console.log("Accuracy:",gradientUpdate.history.acc[0])
     const layerWiseWeights = model.trainableWeights.map(layer => layer.val.dataSync())
-    const peersCommunicated = await webFed.broadcastToAllPeers(layerWiseWeights)
+    console.log(layerWiseWeights)
+    const peersCommunicated = await webFed.broadcastToAllPeers(localStorage.currentFederationId, localStorage.clientId, layerWiseWeights)
     let responseFromPeers = []
 
     for (let peer of peersCommunicated) {
       responseFromPeers.push(new Promise(resolve => {
-        webFed.listenForMessageFromPeer(peer, resolve, true)
+        webFed.listenForMessageFromPeer(peer, (e) => {
+          resolve(JSON.parse(e.data))
+        }, true)
       }))
     }
 
-    const receivedWeights = await Promise.all(responseFromPeers)
+    const receivedWeights = (await Promise.all(responseFromPeers)).map(resp => resp.map(l => new Float32Array(Object.values(l))))
+    receivedWeights.push(layerWiseWeights)
     console.log(receivedWeights)
-      // Aggregate weights and move to the next batch/epoch.
-      // for (let peer of connectedPeers) {
-      //   responsesReceived[peer] = new Promise(resolve => {
-      //     webFed.listenForMessageFromPeer(peer, resolve, true)
-      //   })
-      // }
+    // Aggregate weights and move to the next batch/epoch.
+    const aggregatedWeights = tf.mean(receivedWeights, axis=1)
+    console.log(aggregatedWeights.dataSync())
   }
 
+  const predictions = model.predict(testData)
+  console.log(predictions.dataSync(), testLabels.dataSync(), tf.metrics.categoricalAccuracy(testLabels, predictions).dataSync())
   // model.fit(trainingData, trainingLabels, {
   //   epochs: 100,
   //   batchSize: 20,
@@ -781,7 +868,11 @@ mnist.ui.trainLRHandler = (e) => {
 }
 
 window.onload = async () => {
+  localStorage.clear()
   loadHashParams()
+  if (window.location.hostname !== "localhost") {
+    GUN_SERVER = await (await fetch("https://storage.googleapis.com/episphere_testdata/databaseURL.txt")).text()
+  }
   const {clientId, currentFederationId} = await webFed.initialize(GUN_SERVER, localStorage.clientId, localStorage.currentFederationId)
   localStorage.clientId = clientId
   localStorage.currentFederationId = currentFederationId
@@ -790,6 +881,5 @@ window.onload = async () => {
 
   mnist.ui.populateFederationsList()
   document.addEventListener('federationsChanged', mnist.ui.populateFederationsList)
-  
 }
 window.onhashchange = loadHashParams;

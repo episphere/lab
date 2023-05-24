@@ -7,7 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tw-elements/dist/css/tw-elements.min.css" />
-  <link rel="stylesheet" href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css">
+  <link rel="stylesheet" href="https://cdn.tailwindcss.com">
+  <script src="https://cdn.tailwindcss.com"></script>
   <script type="module" src="./mnistFed.js"></script>
   <title>WebFed Lab</title>
 </head>
@@ -15,24 +16,24 @@
 <body class="bg-black">
   <div class="container grid w-full h-screen max-w-full max-h-screen" style="grid-template-rows: auto auto 1fr;">
 
-    <nav class="bg-gray-800 border-b border-solid border-gray-500">
+    <nav class="bg-slate-800 border-b border-solid border-slate-500">
       <div class="max-w-full mx-auto px-2 sm:px-6 lg:px-8">
         <div class="relative flex items-center justify-between h-16">
           <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
-            <div class="hidden sm:block">
+            <div class="sm:block">
               <div class="flex space-x-4">
-                <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->
+                <!-- Current: "bg-slate-900 text-white", Default: "text-slate-300 hover:bg-slate-700 hover:text-white" -->
                 <a href="./iris.html"
-                  class="hover:bg-gray-700 hover:text-white text-gray-300 px-5 py-2 rounded-md text-sm font-medium">Iris</a>
+                  class="hover:bg-slate-700 hover:text-white text-slate-300 px-5 py-2 rounded-md text-sm font-medium">Iris</a>
 
-                <a href="#" class="bg-gray-900 text-white px-5 py-2 rounded-md text-sm font-medium"
+                <a href="#" class="bg-slate-900 text-white px-5 py-2 rounded-md text-sm font-medium"
                   aria-current="page">MNIST</a>
 
                 <a href="./sequencing.html"
-                  class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Sequencing</a>
+                  class="text-slate-300 hover:bg-slate-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Sequencing</a>
 
                 <a href="./timeSeries.html"
-                  class="text-gray-300 hover:bg-gray-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Time
+                  class="text-slate-300 hover:bg-slate-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Time
                   Series</a>
               </div>
             </div>
@@ -40,7 +41,7 @@
         </div>
       </div>
     </nav>
-    <header class="bg-gray-800 shadow">
+    <header class="bg-slate-800 shadow">
       <div class="flex items-center mx-auto py-10 px-2 sm:px-6 lg:px-8">
         <h1 class="text-3xl font-bold text-white">
           MNIST Federated
@@ -68,11 +69,9 @@
             </ul>
           </div>
           <div class="hidden flex flex-1 items-center w-full">
-            <button id="trainCNNBtn"
-              class="w-32 h-16 bg-green-700 hover:bg-blue-500 text-white mx-10 px-4 rounded">Start
-              Training</button>
+            
             <div class="relative w-full my-3">
-              <select id="datasetSelector" class="text-white" data-te-select-init value="1">
+              <select id="datasetSelector" class="text-white dark:placeholder:text-white-700 " value="1" data-te-select-init value="1">
                 <option value="1">Iris 1</option>
                 <option value="2">Iris 2</option>
                 <option value="3">Iris 3</option>
@@ -103,6 +102,9 @@
                 IID
               </label>
             </div>
+            <button id="trainCNNBtn"
+              class="w-64 h-16 bg-emerald-700 hover:bg-blue-500 text-white mx-10 px-4 rounded">Start
+              Training</button>
           </div>
         </div>
     </header>

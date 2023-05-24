@@ -256,7 +256,7 @@ webFed.connectToPeer = async (federationId=webFed.currentFederation.id, selfClie
             gunDB.updateObject([GUN_TLN_KEY, federationId, selfClientId, "offers", peerId], null)
           }
           
-          webFed.currentFederation.clients[peerId].dataChannel.onmessage = (msg) => console.log("Received data from peer:\n", msg.data)
+          // webFed.currentFederation.clients[peerId].dataChannel.onmessage = (msg) => console.log("Received data from peer:\n", msg.data)
           
           if (!webFed.currentFederation.clients[peerId].localConnection.remoteDescription) {
             setTimeout(() => webFed.currentFederation.clients[peerId].localConnection.setRemoteDescription(answer), 1000)
@@ -292,9 +292,9 @@ webFed.connectToPeer = async (federationId=webFed.currentFederation.id, selfClie
               gunDB.updateObject([GUN_TLN_KEY, federationId, selfClientId, "answers", peerId], null)
             }
             
-            webFed.currentFederation.clients[peerId].dataChannel.onmessage = (msg) => {
-              console.log("msg from peer:", msg)
-            }
+            // webFed.currentFederation.clients[peerId].dataChannel.onmessage = (msg) => {
+            //   console.log("msg from peer:", msg)
+            // }
           }
           gunDB.createObject([GUN_TLN_KEY, federationId, selfClientId, "answers"], peerId, answer)
         }
@@ -321,18 +321,16 @@ webFed.broadcastToAllPeers = async (federationId, clientId, data) => {
   Object.values(allPeers).forEach(peer => {
     if (peer.dataChannel && peer.dataChannel.readyState === 'open') {
       peer.dataChannel.send(data)
-      peersCommunicated.push(peer)
+      peersCommunicated.push(peer.id)
     }
   })
   return peersCommunicated
 }
 
-webFed.listenForMessageFromPeer = (peerId, cb, once=true) => {
-  console.log(webFed.currentFederation.clients)
+webFed.listenForMessageFromPeer = (peerId, cb, once=true) =>
   webFed.currentFederation.clients[peerId].dataChannel.addEventListener("message", cb, {
     once
   })
-}
 
 webFed.initialize = async (gunServerPath, clientId, currentFederationId) => {
   if (!gunServerPath) {
