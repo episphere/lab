@@ -1,5 +1,5 @@
-import gunDB from './gunWrapper.js'
-
+// import gunDB from './gunWrapper.js'
+import p2p from './peerJsWrapper.js'
 
 const configuration = { 'iceServers': [{ 'urls': 'stun:stun.l.google.com:19302' }] }
 const GUN_TLN_KEY = "federatedTest"
@@ -77,11 +77,6 @@ webFed.getAllFederationIds = () => {
   console.warn("Multiple federations not yet supported")
   return webFed.allFederationIds
 }
-
-// webFed.getAllFederationIds = async () => {
-//   console.warn("Multiple federations not yet supported")
-//   return await gunDB.getObject([GUN_TLN_KEY, GUN_KEYS_SPEC.fedDetails])
-// }
 
 webFed.getFederation = async (federationId) => {
   console.warn("Multiple federations not yet supported")
@@ -242,7 +237,7 @@ webFed.connectToPeer = async (federationId=webFed.currentFederation.id, selfClie
       gunDB.trackObject([GUN_TLN_KEY, federationId, peerId, "answers", selfClientId], (answer) => {
         // const answer = await mnist.getFromObjectProps(peerId, `answer/${localStorage.clientId}`)
         
-        if (answer && !webFed.currentFederation.clients[peerId].connectionState !== "receiving_answer") {
+        if (answer && webFed.currentFederation.clients[peerId].connectionState !== "receiving_answer") {
           webFed.currentFederation.clients[peerId].connectionState = "receiving_answer"
           webFed.currentFederation.clients[peerId].dataChannel.onopen = (e) => {
             webFed.currentFederation.clients[peerId].connectionState = "connected"
@@ -327,48 +322,58 @@ webFed.broadcastToAllPeers = async (federationId, clientId, data) => {
   return peersCommunicated
 }
 
+webFed.sendDataToPeer = (peerId, data) => {
+  p2p.sendDataToPeer(peerId, data)
+}
+
+webFed.broadcastData = (data) => {
+  p2p.broadcastData(data)
+}
+
 webFed.listenForMessageFromPeer = (peerId, cb, once=true) =>
   webFed.currentFederation.clients[peerId].dataChannel.addEventListener("message", cb, {
     once
   })
 
-webFed.initialize = async (gunServerPath, clientId, currentFederationId) => {
-  if (!gunServerPath) {
-    console.error("Path to Gun server required")
-  }
-  if (!clientId) {
-    clientId = crypto.randomUUID()
-  }
-  gunDB.initialize(gunServerPath)
+webFed.initializeFederation = async (initOptions) => {
+  const { clientId: connectedClientId, federationId: connectedFederationId } = await p2p.initializeFederation(initOptions)
+  webFed.group = p2p.group
+  // if (!gunServerPath) {
+  //   console.error("Path to Gun server required")
+  // }
+  // if (!clientId) {
+  //   clientId = crypto.randomUUID()
+  // }
+  // gunDB.initialize(gunServerPath)
   
-  const refreshFederationsFromDB = async () => {
-    const allFederations = await gunDB.getObject([GUN_TLN_KEY, GUN_KEYS_SPEC['fedDetails']])
+  // const refreshFederationsFromDB = async () => {
+  //   const allFederations = await gunDB.getObject([GUN_TLN_KEY, GUN_KEYS_SPEC['fedDetails']])
     
-    if (allFederations && !Object.keys(allFederations).every((fed, ind) => fed === webFed.allFederationIds[ind])) {
-      webFed.allFederationIds = Object.keys(allFederations)
+  //   if (allFederations && !Object.keys(allFederations).every((fed, ind) => fed === webFed.allFederationIds[ind])) {
+  //     webFed.allFederationIds = Object.keys(allFederations)
       
-      if (currentFederationId) {
-        await webFed.updateAllClientsList(currentFederationId, clientId)
-        if (webFed.currentFederation.clients?.[clientId] && webFed.currentFederation.id !== currentFederationId) {
+  //     if (currentFederationId) {
+  //       await webFed.updateAllClientsList(currentFederationId, clientId)
+  //       if (webFed.currentFederation.clients?.[clientId] && webFed.currentFederation.id !== currentFederationId) {
           
-          if (webFed.currentFederation.id) {
-            gunDB.untrackObject([GUN_TLN_KEY, webFed.currentFederation.id, GUN_KEYS_SPEC['users']])
-          }
+  //         if (webFed.currentFederation.id) {
+  //           gunDB.untrackObject([GUN_TLN_KEY, webFed.currentFederation.id, GUN_KEYS_SPEC['users']])
+  //         }
           
-          webFed.currentFederation.id = currentFederationId
+  //         webFed.currentFederation.id = currentFederationId
 
-        } else {
-          currentFederationId = undefined
-        }
-      }
-      document.dispatchEvent(new CustomEvent('federationsChanged'))
-    }
-  }
+  //       } else {
+  //         currentFederationId = undefined
+  //       }
+  //     }
+  //     document.dispatchEvent(new CustomEvent('federationsChanged'))
+  //   }
+  // }
   
-  await refreshFederationsFromDB()
-  gunDB.trackObject([GUN_TLN_KEY, GUN_KEYS_SPEC['fedDetails']], refreshFederationsFromDB)
+  // await refreshFederationsFromDB()
+  // gunDB.trackObject([GUN_TLN_KEY, GUN_KEYS_SPEC['fedDetails']], refreshFederationsFromDB)
   
-  return { clientId, currentFederationId }
+  return { connectedClientId, connectedFederationId }
 }
 
 export default webFed
