@@ -32,13 +32,13 @@ p2p.initializeFederation = (initOptions) => new Promise(resolve => {
   })
 
   p2p.group.addEventListener('connected', (e) => {
-    console.log(`Connected to session ${e.sessionID}`);
+    console.log(`Connected to federation ${e.sessionID}`);
     p2p.clientId = clientId
     p2p.federationId = e.sessionID
   })
 
   p2p.group.addEventListener('joined', (e) => {
-    console.log(`Joined session ${e.sessionID}`);
+    console.log(`Joined federation ${e.sessionID}`);
     p2p.clientId = clientId
     p2p.federationId = e.sessionID
     resolve({ clientId: p2p.clientId, federationId: p2p.federationId })

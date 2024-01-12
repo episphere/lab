@@ -817,11 +817,13 @@ iris.trainLR = async (datasetIndex=1, iid=true) => {
   iris.ui.writeToConsole("All peers ready. Starting training...")
   
   await new Promise(res => setTimeout(res, 1000))
+  
   tfvis.visor()
   tfvis.show.modelSummary({
     'name': "Model Architecture",
     'tab': "Model"
   }, model)
+  
   model.layers.forEach(async (layer, index) => {
     tfvis.show.layer({
       'name': `Layer ${index+1}`,
@@ -829,7 +831,14 @@ iris.trainLR = async (datasetIndex=1, iid=true) => {
     }, layer)
   })
 
-  for (let epoch = 0; epoch < 50; epoch++) {
+  const historyMetrics = {
+    'history': {
+      'loss': [],
+      'acc': []
+    }
+  }
+  const historySurface = {name: 'show.history', tab: 'Training'}
+  for (let epoch = 0; epoch < 200; epoch++) {
     console.log("Epoch", epoch)
     // for (let row in trainingData) {
     //   const gradientUpdate = await model.trainOnBatch(trainingData[row], trainingLabels[row])
@@ -837,14 +846,11 @@ iris.trainLR = async (datasetIndex=1, iid=true) => {
     const gradientUpdate = await model.fit(trainingData, trainingLabels, {
       batchSize: irisTrainingData.length,
       epochs: epoch+1,
-      initialEpoch: epoch,
-      callbacks: tfvis.show.fitCallbacks({
-        'name': "Training",
-        'tab': "Training"
-      }, ["loss", "acc"], {
-        'callbacks': ["onEpochEnd"]
-      })
+      initialEpoch: epoch
     })
+    historyMetrics.history.loss.push(gradientUpdate.history.loss)
+    historyMetrics.history.acc.push(gradientUpdate.history.acc)
+    tfvis.show.history(historySurface, historyMetrics, ['loss', 'acc']);
     // console.log("Loss:",gradientUpdate.history.loss[0])
     // console.log("Accuracy:",gradientUpdate.history.acc[0])
     const layerWiseWeights = model.trainableWeights.map(layer => layer.val.dataSync())
@@ -861,7 +867,7 @@ iris.trainLR = async (datasetIndex=1, iid=true) => {
     let allResponsesReceived = false
     while(!allResponsesReceived) {
       await new Promise(res => setTimeout(res, 500))
-      allResponsesReceived = responseFromPeers['weightUpdates'].find(o => o.epoch === epoch).weightUpdates.length === iris.group.userIDs.size - 1
+      allResponsesReceived = responseFromPeers['weightUpdates'].find(o => o.epoch === epoch)?.weightUpdates.length === iris.group.userIDs.size - 1
     }
 
     const receivedWeights = responseFromPeers['weightUpdates'].find(o => o.epoch === epoch).weightUpdates.map(peerUpdate => {

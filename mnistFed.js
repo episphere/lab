@@ -7,6 +7,8 @@ mnist.mnistDB = {}
 mnist.mnist_NUM_CLASSES = 10
 mnist.stop = false
 
+mnist.DATA_SUBSET_SIZE_PER_PEER = 0.3
+
 let GUN_SERVER = "http://localhost:8765/gun"
 
 const indexedDBConfig = {
@@ -727,7 +729,7 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
   //   units: 3,
   // }))
   model.compile({
-    loss: "categoricalCrossentropy",
+    loss: "binaryCrossentropy",
     optimizer: tf.train.adam(.0008),
     metrics: ["accuracy"]
   })
@@ -748,23 +750,41 @@ mnist.trainLR = async (datasetIndex=1, iid=true) => {
     console.log("Accuracy:",gradientUpdate.history.acc[0])
     const layerWiseWeights = model.trainableWeights.map(layer => layer.val.dataSync())
     console.log(layerWiseWeights)
-    const peersCommunicated = await webFed.broadcastToAllPeers(localStorage.currentFederationId, localStorage.clientId, layerWiseWeights)
+    const peersCommunicated = await webFed.broadcastToAllPeers(localStorage.currentFederationId, localStorage.clientId, {
+      'op': "layerWiseWeights",
+      'data': {
+        layerWiseWeights
+      }
+    })
     let responseFromPeers = []
 
     for (let peer of peersCommunicated) {
       responseFromPeers.push(new Promise(resolve => {
         webFed.listenForMessageFromPeer(peer, (e) => {
-          resolve(JSON.parse(e.data))
+          if (e.data.op === "layerWiseWeights") {
+            resolve(JSON.parse(e.data.data))
+          }
         }, true)
       }))
     }
-
+    console.log("HERE")
     const receivedWeights = (await Promise.all(responseFromPeers)).map(resp => resp.map(l => new Float32Array(Object.values(l))))
     receivedWeights.push(layerWiseWeights)
     console.log(receivedWeights)
     // Aggregate weights and move to the next batch/epoch.
-    const aggregatedWeights = tf.mean(receivedWeights, axis=1)
-    console.log(aggregatedWeights.dataSync())
+    const aggregatedWeights = receivedWeights.map(peer => peer.map(layer => new Array(layer.length)))
+    for (let layer in receivedWeights[0]) {
+      const layerWiseAverage = receivedWeights[0][layer].reduce((averagedWeights, curr, ind) => {
+        const sumOfWeights = receivedWeights.reduce((sum, peer, ind) => {
+          sum += peer[layer][ind]
+          return sum
+        }, 0)
+        averagedWeights.push(sumOfWeights/receivedWeights.length)
+        return averagedWeights
+      },[])
+      aggregatedWeights.push(layerWiseAverage)
+    }
+    console.log(aggregatedWeights)
   }
 
   const predictions = model.predict(testData)
@@ -844,21 +864,147 @@ mnist.ui.createFederationHandler = async (e) => {
   mnist.ui.populateFederationsList()
 }
 
-mnist.ui.joinFederationHandler = async (federationId, clientId=localStorage.clientId) => {
-  document.addEventListener("newPeer", (e) => {
-    mnist.ui.writeToConsole(`New Peer ${e.detail.peerId} just joined! Attempting connection...`)
+mnist.ui.joinFederationHandler = async (federationId=localStorage.federationId, clientId=localStorage.clientId) => {
+  // document.addEventListener("newPeer", (e) => {
+  //   mnist.ui.writeToConsole(`New Peer ${e.detail.peerId} just joined! Attempting connection...`)
+  // })
+  // document.addEventListener("peerConnected", (e) => {
+  //   mnist.ui.writeToConsole(`Connection established with peer ${e.detail.peerId}!`)
+  // })
+  
+  // mnist.ui.writeToConsole(`Joining federation ${federationId} as a client with ID: ${clientId}...`)
+  // await mnist.joinFederation(federationId, clientId)
+  
+  // mnist.ui.writeToConsole(`Looking for peers...`)
+  
+  // mnist.ui.addSelectorToFederationInList(federationId)
+  // document.getElementById("trainCNNBtn").parentElement.classList.remove("hidden")
+
+  if (!federationId) {
+    federationId = document.getElementById("federationIdTextInput").value === '' ? undefined : document.getElementById("federationIdTextInput").value
+  }
+  if (!clientId) {
+    clientId = crypto.randomUUID()
+  }
+  const newUserCallback = (e) => {
+    console.log("New User", e.userID)
+    mnist.ui.writeToConsole(`New user ${e.userID} joined!`)
+    mnist.ui.enableTrainLR()
+  }
+  const newMessageCallback = (e) => {
+    console.log(`New message from ${e.userID}:`, e.message)
+    const peerMessageEvent = new CustomEvent("peerMessage", {detail: e})
+    document.body.dispatchEvent(peerMessageEvent)
+  }
+  const { connectedClientId, connectedFederationId } = await webFed.initializeFederation({ clientId, federationId, newUserCallback, newMessageCallback })
+  mnist.group = webFed.group
+  localStorage.clientId = connectedClientId
+  localStorage.federationId = connectedFederationId
+  document.getElementById("federationIdTextInput").value = connectedFederationId
+  document.getElementById("joinFederationBtn").innerText = "Federation Joined!"
+  document.getElementById("joinFederationBtn").classList.replace("bg-blue-900", "bg-green-900")
+  document.getElementById("joinFederationBtn").classList.replace("hover:bg-blue-800", "hover:bg-green-800")
+  document.getElementById("joinFederationBtn").classList.add("disabled")
+}
+
+mnist.ui.enableTrainLR = async (e) => {
+
+  document.getElementById("trainLROptions").classList.remove("hidden")
+  mnist.ui.writeToConsole("Fetching data manifest...")
+  const trainingManifestRequestURL = "https://script.google.com/macros/s/AKfycbyS0oKEIPPN-qcp0RtX9VGFmu0rZ4MI8uMNm_OCPiwllXRBO_F4TTnEfOYavVzYTc3f/exec?filename=trainingLabels.csv"
+  const testManifestRequestURL = "https://script.google.com/macros/s/AKfycbyS0oKEIPPN-qcp0RtX9VGFmu0rZ4MI8uMNm_OCPiwllXRBO_F4TTnEfOYavVzYTc3f/exec?filename=testLabels.csv"
+  const trainingCSV = await (
+    await fetch(trainingManifestRequestURL, {}, false)
+  ).text()
+  const testCSV = await (
+    await fetch(testManifestRequestURL, {}, false)
+  ).text()
+  mnist.ui.writeToConsole("Data loaded! Ready to connect.")
+  let trainingCSVLines = trainingCSV.split("\n").slice(1).sort(() => 0.5 - Math.random())
+  // .slice(0, mnist.DATA_SUBSET_SIZE_PER_PEER)
+  let testCSVLines = testCSV.split("\n").slice(1).sort(() => 0.5 - Math.random())
+  // .slice(0, mnist.DATA_SUBSET_SIZE_PER_PEER)
+
+  mnist.trainingData = trainingCSVLines.map((line, idx) => {
+    const [filename, label] = line.split(",").map((x) => x.trim())
+    return {
+      filename, label
+    }
   })
-  document.addEventListener("peerConnected", (e) => {
-    mnist.ui.writeToConsole(`Connection established with peer ${e.detail.peerId}!`)
+  mnist.testData = testCSVLines.map((line, idx) => {
+    const [filename, label] = line.split(",").map((x) => x.trim())
+    return {
+      filename, label
+    }
   })
+
+  mnist.trainingDataSubset = mnist.trainingData.slice(0, Math.floor(mnist.trainingData.length*mnist.DATA_SUBSET_SIZE_PER_PEER))
+  mnist.testDataSubset = mnist.trainingData.slice(0, Math.floor(mnist.testData.length*mnist.DATA_SUBSET_SIZE_PER_PEER))
   
-  mnist.ui.writeToConsole(`Joining federation ${federationId} as a client with ID: ${clientId}...`)
-  await mnist.joinFederation(federationId, clientId)
+  const labelProportions = [...mnist.trainingDataSubset].reduce((agg, row) => {
+    if (!agg[row.label]) {
+      agg[row.label] = 1
+    } else {
+      agg[row.label] += 1
+    }
+    return agg
+  }, {})
+  const proportionListParent = document.getElementById("classProportionSelector")
+  proportionListParent.innerHTML = '';
   
-  mnist.ui.writeToConsole(`Looking for peers...`)
+  Object.keys(labelProportions).sort((a,b) => a-b).forEach((label, ind) => {
+    const liElement = document.createElement('li')
+    console.log("prop", label, Math.round(labelProportions[label]*100/mnist.trainingDataSubset.length))
+    const setPropSpan = document.createElement('span')
+    setPropSpan.id = `classProportion_${label}`
+    setPropSpan.className = "text-left block w-full whitespace-nowrap bg-transparent px-4 py-2 text-sm font-normal text-neutral-700 hover:bg-neutral-100 active:text-neutral-800 active:no-underline disabled:pointer-events-none dark:text-neutral-200 dark:hover:bg-neutral-600"
+    setPropSpan.setAttribute('data-te-dropdown-item-ref', '')
+    
+    const rangeSlider = document.createElement('input')
+    rangeSlider.id = setPropSpan.id + "_range"
+    rangeSlider.className = "classProportionRange"
+    rangeSlider.setAttribute('type', 'range')
+    rangeSlider.setAttribute('label', label)
+    rangeSlider.min = "0"
+    rangeSlider.max = "100"
+    rangeSlider.value = Math.round(labelProportions[label]*100/mnist.trainingDataSubset.length)
+    rangeSlider.onchange = mnist.adjustDataSampling
+    
+    const setPropLabel = document.createElement("label")
+    setPropLabel.for = rangeSlider.id
+    setPropLabel.innerText = label
+
+    setPropSpan.appendChild(setPropLabel)
+    setPropSpan.appendChild(rangeSlider)
+    
+    if (ind !== 0) {
+      liElement.appendChild(document.createElement('hr'))
+    }
+    
+    liElement.appendChild(setPropSpan)
+    proportionListParent.appendChild(liElement)
+  })
+
+}
+
+mnist.adjustDataSampling = (label) => {
+  mnist.ui.writeToConsole("Class proportions changed. Readjusting sampling...")
+  mnist.trainingDataSubset = []
+  const proportionSelections = document.querySelectorAll(".classProportionRange")
+  const proportionValues = {}
+  proportionSelections.forEach(rangeElement => {
+    const label = rangeElement.getAttribute("label")
+    proportionValues[label] = rangeElement.value
+  })
+  mnist.trainingData.sort(() => 0.5 - Math.random())
+  Object.entries(proportionValues).forEach(([label, proportion]) => {
+    const numEntries = Math.round(mnist.trainingData.length * mnist.DATA_SUBSET_SIZE_PER_PEER * proportion/100)
+    const entries = mnist.trainingData.filter(x => x.label === label).slice(0, numEntries)
+    mnist.trainingDataSubset = mnist.trainingDataSubset.concat(entries)
+  })
+  console.log(mnist.trainingDataSubset)
   
-  mnist.ui.addSelectorToFederationInList(federationId)
-  document.getElementById("trainCNNBtn").parentElement.classList.remove("hidden")
+  mnist.ui.writeToConsole("Resampling complete.")
 }
 
 mnist.ui.trainLRHandler = (e) => {
@@ -870,16 +1016,11 @@ mnist.ui.trainLRHandler = (e) => {
 window.onload = async () => {
   localStorage.clear()
   loadHashParams()
-  if (window.location.hostname !== "localhost") {
-    GUN_SERVER = await (await fetch("https://storage.googleapis.com/episphere_testdata/databaseURL.txt")).text()
-  }
-  const {clientId, currentFederationId} = await webFed.initialize(GUN_SERVER, localStorage.clientId, localStorage.currentFederationId)
-  localStorage.clientId = clientId
-  localStorage.currentFederationId = currentFederationId
-  document.getElementById("newFederationBtn").addEventListener('click', mnist.ui.createFederationHandler)
-  document.getElementById("trainCNNBtn").addEventListener('click', mnist.ui.trainLRHandler)
+  
+  document.getElementById("joinFederationBtn").addEventListener('click', () => mnist.ui.joinFederationHandler())
+  document.getElementById("trainCNNBtn").addEventListener('click', () => mnist.ui.trainLRHandler())
 
-  mnist.ui.populateFederationsList()
-  document.addEventListener('federationsChanged', mnist.ui.populateFederationsList)
+  // mnist.ui.populateFederationsList()
+  // document.addEventListener('federationsChanged', mnist.ui.populateFederationsList)
 }
 window.onhashchange = loadHashParams;
