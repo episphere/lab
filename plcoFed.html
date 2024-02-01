@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tw-elements/dist/css/tw-elements.min.css" />
+  <link rel="stylesheet" href="https://cdn.tailwindcss.com">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script type="module" src="./plcoFed.js"></script>
+  <title>WebFed Lab</title>
+</head>
+
+<body class="bg-black">
+  <div class="container grid w-full h-screen max-w-full max-h-screen" style="grid-template-rows: auto auto 1fr;">
+
+    <nav class="bg-slate-800 border-b border-solid border-slate-500">
+      <div class="max-w-full mx-auto px-2 sm:px-6 lg:px-8">
+        <div class="relative flex items-center justify-between h-16">
+          <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+            <div class="sm:block">
+              <div class="flex space-x-4">
+                <!-- Current: "bg-slate-900 text-white", Default: "text-slate-300 hover:bg-slate-700 hover:text-white" -->
+                <a href="#" class="bg-slate-900 text-white px-5 py-2 rounded-md text-sm font-medium"
+                  aria-current="page">Iris</a>
+                
+                <a href="./mnistFed.html"
+                  class="hover:bg-slate-700 hover:text-white text-slate-300 px-5 py-2 rounded-md text-sm font-medium">
+                MNIST</a>
+
+                <a href="./sequencing.html"
+                  class="text-slate-300 hover:bg-slate-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Sequencing</a>
+
+                <a href="./timeSeries.html"
+                  class="text-slate-300 hover:bg-slate-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Time
+                  Series</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <header class="bg-slate-800 shadow">
+      <div class="grid grid-flow-row-dense grid-cols-4 items-center mx-auto py-2 px-2 sm:px-6 lg:px-8">
+        <h1 class="col-span-1 row-span-2 text-3xl font-bold text-white">
+          PLCO Federated
+        </h1>
+        <div class="col-span-2 flex flex-1 items-center w-full">
+          <div class="relative w-96 mr-5 my-3">
+            <input type="text" class="w-64 h-16 peer block min-h-[auto] w-full rounded border-0 bg-white px-3 py-[0.32rem] leading-[1.6] outline-none transition-all duration-200 ease-linear focus:placeholder:opacity-900 peer-focus:text-primary data-[te-input-state-active]:placeholder:opacity-900 motion-reduce:transition-none dark:text-neutral-800 dark:placeholder:text-neutral-700 dark:peer-focus:text-primary" id="federationIdTextInput" placeholder="Federation ID (optional)">
+          </div>
+          <button id="joinFederationBtn" class="w-40 h-16 bg-blue-900 hover:bg-blue-800 text-white mr-2 px-4 rounded">Join Federation</button>
+          <button id="federationConfigBtn" class="w-40 h-16 bg-green-800 hover:bg-green-700 text-white mr-2 px-4 rounded disabled">Configure</button>
+        </div>
+        <div id="trainLROptions" class="hidden col-span-3 col-start-2 flex flex-1 items-center w-full">
+          
+          <div class="relative w-full my-3 grid grid-cols-2">
+            <span class="h-full" id="dataInput" ondrop="fileDropHandler(event);">
+              <input type="text" class="w-64 h-full peer block min-h-[auto] w-full rounded border-0 px-3 py-[0.32rem] leading-[1.6] outline-none transition-all duration-200 ease-linear text-black-800" id="dataURLInput" placeholder="Data URL:">
+              <!-- <label for="dataURLInput" class="h-full pointer-events-none absolute left-3 top-3 mb-0 max-w-[90%] origin-[0_0] truncate pt-[0.37rem] leading-[1.6] text-black-700 transition-all duration-200 ease-out peer-focus:-translate-y-[0.9rem] peer-focus:scale-[0.8] peer-focus:text-primary peer-data-[te-input-state-active]:-translate-y-[0.9rem] peer-data-[te-input-state-active]:scale-[0.8] motion-reduce:transition-none dark:text-neutral-500 dark:peer-focus:text-primary" style="margin: auto 0;">Data URL: -->
+              </label>
+            </span>
+            <span class="grid grid-flow-col w-64">
+              <button id="loadDataBtn" class="w-32 h-16 bg-emerald-700 hover:bg-blue-500 text-white mx-5 px-3 rounded">Load Data</button>
+              <button id="trainingOptionsBtn" class="w-32 h-16 bg-emerald-700 hover:bg-blue-500 text-white mx-5 px-3 rounded">Training Options</button>
+              <button id="trainCNNBtn" class="w-32 h-16 bg-blue-700 hover:bg-blue-500 text-white mx-5 px-3 rounded disabled">Start
+              Training</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main id="consoleParent" class="h-auto max-h-full overflow-y-auto" >
+      <div class="max-w-full px-1">
+        <div class="py-2 sm:px-0">
+          <div id="console" class="px-3 py-3"></div>
+          <!-- <div id="console" class="border-2 border-solid border-green-500 h-96 px-3 py-3 overflow-y-auto"></div> -->
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/tw-elements/dist/js/tw-elements.umd.min.js"></script>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.5.1/dist/tfjs-vis.umd.min.js"></script>
+
+</html>
