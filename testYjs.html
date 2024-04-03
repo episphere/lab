@@ -18,8 +18,8 @@
       const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
   
       const provider = new yjsWebRTC.WebrtcProvider("c4b", ydoc, {
-          signaling: ["wss://violet-peas-pay.loca.lt"]
-        })
+        signaling: ["wss://violet-peas-pay.loca.lt", "wss://signaling.yjs.dev/" ]
+      })
   
     })
     const updateYArrayShared = (value) => {
