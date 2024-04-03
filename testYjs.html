@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- <meta http-equiv="Content-Security-Policy" content="connect-src 'ws://localhost:4444';"> -->
     <title>Document</title>
   </head>
   <body></body>
@@ -25,7 +26,7 @@
       const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
   
       const provider = new yjsWebRTC.WebrtcProvider("c4b", ydoc, {
-          signaling: ["ws://localhost:4444"]
+          signaling: ["wss://violet-peas-pay.loca.lt"]
         })
   
       yarrayShared = ydoc.getArray('c4bNumbers')
