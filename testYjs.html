@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body></body>
+  <script>
+    let yarrayShared;
+    import("https://esm.sh/yjs@13.6.14").then(async yjs => {
+
+      const ydoc = new yjs.Doc()
+  
+      let yarray = ydoc.getArray("numbers");
+  
+      yarray.insert(0, [1234]);
+      yarray.insert(0, [5, 6]);
+  
+      const updates = yjs.encodeStateAsUpdate(ydoc);
+      console.log(yjs.decodeUpdate(updates));
+  
+  
+      const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
+  
+      const provider = new yjsWebRTC.WebrtcProvider("c4b", ydoc, {
+          signaling: ["ws://localhost:4444"]
+        })
+  
+      yarrayShared = ydoc.getArray('c4bNumbers')
+  
+      provider.on('synced', synced => {
+          console.log('synced!', synced)
+      })
+  
+      yarrayShared.observeDeep(() => {
+        console.log("yarray updated: ", yarrayShared.toJSON());
+      })
+    })
+    const updateYArrayShared = (value) => {
+      yarrayShared.insert(0, value)
+    }
+  </script>
+</html>
