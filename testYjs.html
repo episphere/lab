@@ -21,6 +21,14 @@
         signaling: ["wss://new-candles-clean.loca.lt"]
       })
   
+      provider.on('synced', synced => {
+          console.log('synced!', synced)
+      })
+
+      yarrayShared.observeDeep(() => {
+        console.log("yarray updated: ", yarrayShared.toJSON());
+      })
+      
       updateYArrayShared = (value) => {
         yarrayShared.insert(0, value)
       }
