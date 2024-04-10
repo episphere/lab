@@ -12,18 +12,19 @@
     let yarrayShared;
     import("https://esm.sh/yjs@13.6.14").then(async yjs => {
 
-      const ydoc = new yjs.Doc()
-      const yarrayShared = ydoc.getArray('c4bNumbers')
+      ydoc = new yjs.Doc()
+      yarrayShared = ydoc.getArray('c4bNumbers')
 
       const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
   
       const provider = new yjsWebRTC.WebrtcProvider("c4b", ydoc, {
-        signaling: ["wss://new-candles-clean.loca.lt", "ws:localhost:4444", "wss://signaling.yjs.dev/" ]
+        signaling: ["wss://new-candles-clean.loca.lt"]
       })
   
+      updateYArrayShared = (value) => {
+        yarrayShared.insert(0, value)
+      }
+
     })
-    const updateYArrayShared = (value) => {
-      yarrayShared.insert(0, value)
-    }
   </script>
 </html>
