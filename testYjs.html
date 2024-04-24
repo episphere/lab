@@ -9,16 +9,16 @@
   </head>
   <body></body>
   <script>
-    let yarrayShared;
+    let yarrayShared
     import("https://esm.sh/yjs@13.6.14").then(async yjs => {
 
-      ydoc = new yjs.Doc()
+      const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
+      const ydoc = new yjs.Doc()
       yarrayShared = ydoc.getArray('c4bNumbers')
 
-      const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
   
       const provider = new yjsWebRTC.WebrtcProvider("c4b", ydoc, {
-        signaling: ["wss://new-candles-clean.loca.lt"]
+        signaling: [ "wss://d622301c-d02f-4801-8168-e9ea6beeb2ec-00-1ls86fnzcsyqq.riker.replit.dev/"]
       })
   
       provider.on('synced', synced => {
@@ -28,11 +28,13 @@
       yarrayShared.observeDeep(() => {
         console.log("yarray updated: ", yarrayShared.toJSON());
       })
-      
-      updateYArrayShared = (value) => {
-        yarrayShared.insert(0, value)
-      }
 
     })
+    const updateYArrayShared = (value) => {
+      yarrayShared.insert(0, value)
+    }
+    const getYArrayShared = () => {
+      console.log(yarrayShared.toJSON())
+    }
   </script>
 </html>
