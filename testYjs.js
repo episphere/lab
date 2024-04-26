@@ -1,7 +1,7 @@
 import { Doc, WebrtcProvider } from "https://cdn.jsdelivr.net/gh/rozek/yjs-bundle/dist/yjs-bundle.esm.js"
 
 let DEFAULT_SIGNALING_SERVER_URL = "wss://d622301c-d02f-4801-8168-e9ea6beeb2ec-00-1ls86fnzcsyqq.riker.replit.dev/"
-let signalingServerURL = ""
+let signalingServerURL = localStorage.signalingServerURL || ""
 let ydoc = undefined
 const DEFAULT_ROOM_NAME = "testing123"
 const DEFAULT_ARRAY_NAME = "numbers"
@@ -74,7 +74,15 @@ const setupWebrtc = () => {
 }
 
 const setSignalingServer = (url) => {
+  if (!url.startsWith("ws")) {
+    if (url.startsWith("http")) {
+      url = url.replace("https://", "")
+      url = url.replace("http://", "")
+    }
+    url = url.includes("localhost") ? `ws://${url}` : `wss://${url}`
+  }
   signalingServerURL = url
+  localStorage.signalingServerURL = signalingServerURL
   if (document.getElementById("signalingServerURLInput").value !== signalingServerURL) {
     document.getElementById("signalingServerURLInput").value = signalingServerURL
   }
@@ -114,7 +122,9 @@ const addEventListeners = () => {
 
 window.onload = () => {
   addEventListeners()
-  if (!signalingServerURL) {
+  if (signalingServerURL) {
+    setSignalingServer(signalingServerURL)
+  } else {
     setSignalingServer(DEFAULT_SIGNALING_SERVER_URL)
   }
 }
