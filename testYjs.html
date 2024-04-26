@@ -3,38 +3,70 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tw-elements/dist/css/tw-elements.min.css" />
+    <link rel="stylesheet" href="https://cdn.tailwindcss.com">
+    <script src="https://cdn.tailwindcss.com"></script>
     <!-- <meta http-equiv="Content-Security-Policy" content="connect-src 'ws://localhost:4444';"> -->
-    <title>Document</title>
+    <title>Test Y.js</title>
   </head>
-  <body></body>
-  <script>
-    let yarrayShared
-    import("https://esm.sh/yjs@13.6.14").then(async yjs => {
+  <body class="bg-black">
+    <nav class="bg-slate-800 border-b border-solid border-slate-500">
+      <div class="max-w-full mx-auto px-2 sm:px-6 lg:px-8">
+        <div class="relative flex items-center justify-between h-16">
+          <div class="flex-1 flex items-center justify-center sm:items-stretch sm:justify-start">
+            <div class="sm:block">
+              <div class="flex space-x-4">
+                <!-- Current: "bg-slate-900 text-white", Default: "text-slate-300 hover:bg-slate-700 hover:text-white" -->
+                <a href="./iris.html"
+                  class="hover:bg-slate-700 hover:text-white text-slate-300 px-5 py-2 rounded-md text-sm font-medium">Iris</a>
 
-      const yjsWebRTC = await import("https://esm.sh/y-webrtc@10.3.0")
-      const ydoc = new yjs.Doc()
-      yarrayShared = ydoc.getArray('c4bNumbers')
+                <a href="./mnist.html" class="bg-slate-900 text-white px-5 py-2 rounded-md text-sm font-medium"
+                  aria-current="page">MNIST</a>
 
-  
-      const provider = new yjsWebRTC.WebrtcProvider("c4b", ydoc, {
-        signaling: [ "wss://d622301c-d02f-4801-8168-e9ea6beeb2ec-00-1ls86fnzcsyqq.riker.replit.dev/"]
-      })
-  
-      provider.on('synced', synced => {
-          console.log('synced!', synced)
-      })
+                <a href="./sequencing.html"
+                  class="text-slate-300 hover:bg-slate-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Sequencing</a>
 
-      yarrayShared.observeDeep(() => {
-        console.log("yarray updated: ", yarrayShared.toJSON());
-      })
+                <a href="./timeSeries.html"
+                  class="text-slate-300 hover:bg-slate-700 hover:text-white px-5 py-2 rounded-md text-sm font-medium">Time
+                  Series</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <header class="bg-slate-800 shadow">
+      <div class="flex items-center mx-auto py-5 px-2 sm:px-6 lg:px-8">
+        <h1 class="text-3xl font-bold text-white">
+          Test Y.js
+        </h1>
+      </div>
+    </header>
+    <div class="relative flex">
+      <div class="relative w-full mx-10 my-3">
+        <input type="text"
+          class="w-full peer block min-h-[auto] rounded border-0 bg-white px-3 py-[0.32rem] leading-[1.6] outline-none transition-all duration-200 ease-linear focus:placeholder:opacity-900 peer-focus:text-primary data-[te-input-state-active]:placeholder:opacity-900 motion-reduce:transition-none dark:text-neutral-800 dark:placeholder:text-neutral-700 dark:peer-focus:text-primary"
+          id="signalingServerURLInput" placeholder="Signaling server URL">
+      </div>
+      <button id="signalingServerURLSubmit"
+        class="w-32 flex items-center h-10 bg-blue-900 hover:bg-blue-800 text-white mx-5 my-3 px-4 rounded"
+        >
+        Submit
+      </button>
+    </div>
+    <hr>
+    <div class="relative flex-col mx-10 my-5">
+      <h3 class="text-xl font-bold text-white">Array:</h3>
+      <ol id="yjsArray">
+      </ol>
+      <button id="addNewValue"
+        class="w-64 flex items-center h-10 bg-green-900 hover:bg-blue-800 text-white my-5 px-4 rounded">
+        + Add New Value
+      </button>
+    </div>
 
-    })
-    const updateYArrayShared = (value) => {
-      yarrayShared.insert(0, value)
-    }
-    const getYArrayShared = () => {
-      console.log(yarrayShared.toJSON())
-    }
-  </script>
+    <script type="module" src="./testYjs.js"></script>
+  </body>
 </html>
