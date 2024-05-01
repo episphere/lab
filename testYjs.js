@@ -1,6 +1,6 @@
 import { Doc, WebrtcProvider } from "https://cdn.jsdelivr.net/gh/rozek/yjs-bundle/dist/yjs-bundle.esm.js"
 
-let DEFAULT_SIGNALING_SERVER_URL = "wss://d622301c-d02f-4801-8168-e9ea6beeb2ec-00-1ls86fnzcsyqq.riker.replit.dev/"
+let DEFAULT_SIGNALING_SERVER_URL = "wss://146ab835-4b6c-4d3e-b32f-c4c446dea5b6-00-25hgtara58a8t.spock.replit.dev:3000/"
 let signalingServerURL = localStorage.signalingServerURL || ""
 let ydoc = undefined
 const DEFAULT_ROOM_NAME = "testing123"
@@ -37,9 +37,6 @@ const setupData = () => {
       yjsArrayElement.appendChild(liElement)
     })
   })
-
-  
-  
 }
 
 const updateDoc = (index, type="insert", val) => {
@@ -98,6 +95,12 @@ const addEventListeners = () => {
     }
   }
 
+  const useDefaultSignalingServerBtn = document.getElementById("useDefaultSignalingServerURL")
+  useDefaultSignalingServerBtn.onclick = () => {
+    const signalingServerURLInput = document.getElementById("signalingServerURLInput")
+    setSignalingServer(DEFAULT_SIGNALING_SERVER_URL)
+  }
+
   const addNewValueBtn = document.getElementById("addNewValue")
   addNewValueBtn.onclick = () => {
     const yjsArrayElement = document.getElementById("yjsArray")
@@ -122,11 +125,6 @@ const addEventListeners = () => {
 
 window.onload = () => {
   addEventListeners()
-  if (signalingServerURL) {
-    setSignalingServer(signalingServerURL)
-  } else {
-    setSignalingServer(DEFAULT_SIGNALING_SERVER_URL)
-  }
 }
 
 // let yArrayShared

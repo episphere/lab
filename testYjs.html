@@ -45,15 +45,18 @@
       </div>
     </header>
     <div class="relative flex">
-      <div class="relative w-full mx-10 my-3">
+      <div class="relative flex items-center w-[48rem] mx-10 my-3">
         <input type="text"
           class="w-full peer block min-h-[auto] rounded border-0 bg-white px-3 py-[0.32rem] leading-[1.6] outline-none transition-all duration-200 ease-linear focus:placeholder:opacity-900 peer-focus:text-primary data-[te-input-state-active]:placeholder:opacity-900 motion-reduce:transition-none dark:text-neutral-800 dark:placeholder:text-neutral-700 dark:peer-focus:text-primary"
           id="signalingServerURLInput" placeholder="Signaling server URL">
       </div>
       <button id="signalingServerURLSubmit"
-        class="w-32 flex items-center h-10 bg-blue-900 hover:bg-blue-800 text-white mx-5 my-3 px-4 rounded"
+        class="w-32 items-center h-10 bg-blue-900 hover:bg-blue-800 text-white mx-5 my-3 px-4 rounded"
+        >Submit</button>
+      <button id="useDefaultSignalingServerURL"
+        class="w-48 items-center h-10 bg-green-900 hover:bg-green-800 text-white mx-5 my-3 px-4 rounded"
         >
-        Submit
+        Use Default
       </button>
     </div>
     <hr>
