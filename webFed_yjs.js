@@ -13,7 +13,7 @@ const TFJS_MODEL_KEYS_IN_LOCALSTORAGE = ["info", "model_metadata", "model_topolo
 const DEFAULT_FEDERATION_NAME = "federation_x"
 const PEERS_SHARED_ARRAY_NAME = "peers"
 const MESSAGES_SHARED_ARRAY_NAME = "messages"
-const WEIGHTS_SHARED_ARRAY_NAME = "weights"
+const PARAMETERS_SHARED_ARRAY_NAME = "PARAMETERS"
 
 export class WebFed {
   constructor({signalingServer=[], federationName=DEFAULT_FEDERATION_NAME, federationPassword="", selfName, quorumThreshold=1.0}) {
@@ -252,9 +252,9 @@ export class WebFed {
     this.broadcastMessage({
       'type': "datasetParams",
       'datasetParams': {
-        numEpochsToAggregateAfter,
-        aggregationStrategy,
-        minIterations
+        numEpochsToAggregateAfter: this.datasetParams.numEpochsToAggregateAfter,
+        aggregationStrategy: this.datasetParams.aggregationStrategy,
+        minIterations: this.datasetParams.minIterations
       },
       acknowledged: [this.selfName]
     })
