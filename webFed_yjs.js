@@ -50,7 +50,7 @@ export class WebFed {
     this.yDoc = new Doc()
     this.peersSharedArray = this.yDoc.getArray(PEERS_SHARED_ARRAY_NAME)
     this.messagesSharedArray = this.yDoc.getArray(MESSAGES_SHARED_ARRAY_NAME)
-    this.weightsSharedArray = this.yDoc.getArray(WEIGHTS_SHARED_ARRAY_NAME)
+    this.parametersSharedArray = this.yDoc.getArray(PARAMETERS_SHARED_ARRAY_NAME)
 
     this.provider = new WebrtcProvider(this.federationName, this.yDoc, {
       signaling: this.signalingServerURLs,
