@@ -93,6 +93,8 @@ const loadExtModules = (modules) => {
 }
 
 mnist.ui.writeToConsole = (text, changeLastLine = false, addSeparator) => {
+  console.log(text)
+  return
   if (changeLastLine) {
     document.getElementById("console").lastElementChild.innerText = text
   } else {
