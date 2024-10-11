@@ -74,24 +74,23 @@
           </div> -->
           <div id="trainLROptions" class="hidden flex flex-1 items-center w-full">
             <div class="relative">
-              <button id="classesPropBtn"
+              <button id="optionsBtn"
                 class="w-full flex items-center h-16 bg-blue-900 hover:bg-blue-800 text-white px-4 rounded"
                 data-te-dropdown-toggle-ref
                 >
-                Classes Proportion
-                <span class="ml-2 w-2">
+                Options
+                <!-- <span class="ml-2 w-2">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-5 w-5">
                     <path fill-rule="evenodd"
                       d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
                       clip-rule="evenodd" />
                   </svg>
-                </span>
+                </span> -->
                 </button>
-                <ul id="classProportionSelector"
+                <!-- <div id="optionsDropdown"
                   class="absolute z-[1000] float-left m-0 hidden min-w-max list-none overflow-hidden rounded-lg border-none bg-white bg-clip-padding text-left text-base shadow-lg dark:bg-neutral-700 [&[data-te-dropdown-show]]:block"
                   data-te-dropdown-menu-ref>
-                  <li></li>
-                </ul>
+                </div> -->
                 <!-- <select id="datasetSelector" class="text-white dark:placeholder:text-white-700 " value="1" data-te-select-init value="1">
                 <option value="1">Iris 1</option>
                 <option value="2">Iris 2</option>
@@ -129,7 +128,8 @@
           </div>
         </div>
     </header>
-    <main id="consoleParent" class="h-auto max-h-full overflow-y-auto" onscroll="mnist.recordScrolled()">
+    
+    <main id="consoleParent" class="h-auto max-h-full overflow-y-auto">
       <div class="max-w-full px-1">
         <div class="py-2 sm:px-0">
           <div id="console" class="px-3 py-3"></div>
@@ -137,6 +137,26 @@
         </div>
       </div>
     </main>
+    <div id="optionsDiv" class="hidden relative z-10" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      <div id="modalBackdrop" class="fixed inset-0 bg-gray-500 opacity-0 bg-opacity-75 transition-opacity hidden"></div>
+  
+      <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+          <div id="modalPanel"
+            class="relative transform overflow-hidden rounded-lg bg-gray-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg hidden">
+            <div class="bg-gray-800 p-3">
+              <div class="sm:grow sm:items-start">
+                <div id="optionsDialog" class="w-full grid grid-flow-row auto-rows-max">
+                  <h3 class="text-2xl text-white p-2">Options</h3>
+                  <hr>
+                  <div id="optionsContent"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/tw-elements/dist/js/tw-elements.umd.min.js"></script>
 </body>
