@@ -1128,4 +1128,4 @@ window.onload = async () => {
 }
 window.onhashchange = loadHashParams;
 
-export default mnistFed
+export default mnist
