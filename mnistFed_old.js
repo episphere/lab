@@ -1127,3 +1127,5 @@ window.onload = async () => {
   // document.addEventListener('federationsChanged', mnist.ui.populateFederationsList)
 }
 window.onhashchange = loadHashParams;
+
+export default mnistFed
