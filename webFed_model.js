@@ -208,7 +208,7 @@ export class FedModel {
     this.modelInstance.setWeights(weights, layerIdentifier)
   }
 
-  train(trainingData, trainingLabels, initialEpoch = 0, numEpochsToTrainFor = 5) {
+  fit(trainingData, trainingLabels, initialEpoch = 0, numEpochsToTrainFor = 5) {
     if (typeof (this.lossFunc) === 'undefined' || typeof (this.batchSize) === 'undefined') {
       console.error(`Cannot start model training, incorrect or missing required parameters:\n
         Loss function: ${this.lossFunc}\n,

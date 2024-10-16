@@ -146,6 +146,7 @@ const loadExtModules = (modules) => {
 }
 
 mnist.ui.writeToConsole = (text, changeLastLine = false, addSeparator) => {
+
   if (changeLastLine) {
     document.getElementById("console").lastElementChild.innerText = text
   } else {
@@ -423,12 +424,65 @@ mnist.startTraining = async () => {
   } else {
     mnist.ui.writeToConsole("Training data already present in IndexedDB")
   }
-  mnist.webFed.initializeModel(modelConfig)
+  const model = await mnist.createModel()
+  await mnist.webFed.initializeModel(model)
+  await mnist.webFed.setTrainingParams({
+    numEpochsToAggregateAfter: 10,
+    aggregationStrategy: 1,
+    minEpochs: 200
+  })
+
+  await mnist.webFed.awaitQuorum("trainingParams")
+  await new Promise(resolve => setTimeout(resolve, 7000))
+  mnist.visor = tfvis.visor()
   mnist.trainModel()
+  mnist.webFed.broadcastMessage({
+    'type': "startTraining",
+    'from': mnist.webFed.selfName,
+    'acknowledged': [mnist.webFed.selfName]
+  })
 }
 
 mnist.createModel = () => {
+  const model = tf.sequential()
+
+  // The first layer of the convolutional neural network plays a dual role:
+  // it is both the input layer of the neural network and a layer that performs
+  // the first convolution operation on the input. It receives the 28x28 pixels
+  // black and white images. This input layer uses 16 filters with a kernel size
+  // of 5 pixels each. It uses a simple RELU activation function which pretty
+  // much just looks like this: __/
+  model.add(
+    tf.layers.conv2d({
+      inputShape: [28, 28, 1],
+      kernelSize: 5,
+      filters: 6,
+      activation: "tanh",
+    })
+  )
+
+  // Changed to Average Pooling Layer
+  model.add(tf.layers.avgPool2d({ poolSize: 2, strides: 2 }))
+
+  // Changed to depthwiseConv2d layer
+  model.add(
+    tf.layers.conv2d({ kernelSize: 5, filters: 16, activation: "tanh" })
+  )
+
+
+  // Changed to Average Pooling Layer
+  model.add(tf.layers.avgPool2d({ poolSize: 2, strides: 2 }))
+
+
+  model.add(tf.layers.flatten({}))
+
+  // added additional dense layer
+  model.add(tf.layers.dense({ units: 84, activation: "tanh" }))
+  model.add(tf.layers.dense({ units: 10, activation: "softmax" }))
+
+  return model
 }
+
 mnist.getBatch = async (
   objectStoreName,
   offset,
@@ -525,9 +579,17 @@ mnist.trainModel = async () => {
 
   // }
   mnist.ui.writeToConsole("Creating model architecture:")
-  // mnist.mnistModel = mnist.createModel()
+  const optimizer = "rmsprop"
+  const loss = "categoricalCrossentropy"
+  mnist.webFed.model.compile({
+    optimizer,
+    loss,
+    metrics: ["accuracy", "mse"],
+  })
 
-  mnist.ui.writeToConsole(`Compiled model with ${modelConfig.optimizer} optimizer and ${modelConfig.lossFunc} loss, ready for training`)
+  mnist.ui.writeToConsole(`Compiled model with ${optimizer} optimizer and ${loss} loss, ready for training`)
+  const surface = mnist.visor.surface({ name: 'Model Summary', tab: 'Model Inspection' })
+  tfvis.show.modelSummary(surface, mnist.webFed.model)
 
   // let responseFromPeers = {}
   // responseFromPeers['peersReady'] = responseFromPeers['peersReady'] || new Set()
@@ -563,13 +625,13 @@ mnist.trainModel = async () => {
   //   }
   // })
 
-  mnist.webFed.setTrainingParams({
-    numEpochsToAggregateAfter: 10,
-    aggregationStrategy: 1,
-    minEpochs: 150
-  })
+  // mnist.webFed.setTrainingParams({
+  //   numEpochsToAggregateAfter: 10,
+  //   aggregationStrategy: 1,
+  //   minEpochs: 150
+  // })
   mnist.ui.writeToConsole("Waiting for all peers to finish setting up...")
-
+  await mnist.webFed.awaitQuorum("startTraining")
   mnist.ui.writeToConsole("All peers ready. Starting training...")
 
   await new Promise(res => setTimeout(res, 1000))
@@ -579,28 +641,32 @@ mnist.trainModel = async () => {
   const totalNumGroups = subsetSize / imagesPerGroup
   const batchSize = 100
   let currentEpoch = 0
-  const epochsToTrainFor = 3
+  const epochsToTrainFor = mnist.webFed.trainingParams.numEpochsToAggregateAfter
   const totalNumEpochs = totalNumGroups * epochsToTrainFor
   mnist.modelTrainingSurface = { name: "Model Training", tab: "Training" }
   const metricsVisualizerCallback = tfvis.show.fitCallbacks(mnist.modelTrainingSurface, ['loss', 'acc'], ['onEpochEnd'])
   mnist.currentEpochNum = 0
 
-  if (mnist.webFed.isInitiator) {
-    mnist.webFed.broadcastMessage({
-      'type': "startTraining",
-      'from': mnist.webFed.selfName,
-      'acknowledged': [mnist.webFed.selfName]
-    })
-  }
-
+  
   for (let currentBatchNum = 0; currentBatchNum < totalNumGroups; currentBatchNum++) {
     if (!mnist.stop) {
       mnist.ui.writeToConsole(`Starting group ${currentBatchNum + 1}/${totalNumGroups}`, false, "before")
       await mnist.trainForEpoch(imagesPerGroup, currentBatchNum, batchSize, validationSplit, currentEpoch, epochsToTrainFor, metricsVisualizerCallback)
-      await mnist.webFed.aggregateWeights(1)
+      const weights = mnist.webFed.model.getWeights().map(weightsMat => {
+        return Object.values(weightsMat.dataSync())
+      })
+      await mnist.webFed.roundCompleteCallback(weights)
+      const aggregatedParams = await mnist.webFed.aggregateWeights()
+      let weightsToSet = mnist.webFed.model.getWeights()
+      if (Array.isArray(aggregatedParams) && typeof(aggregatedParams[0]?.shape) === 'undefined') {
+        weightsToSet = aggregatedParams.map((w, i) => {
+          w = tf.tensor(w, weightsToSet[i].shape, weightsToSet[i].dtype)
+          return w
+        })
+      }
+      mnist.webFed.model.setWeights(weightsToSet)
       mnist.ui.writeToConsole(`Successfully aggregated weights for epoch ${currentEpoch}.`)
       currentEpoch += epochsToTrainFor
-
     }
   }
   mnist.ui.writeToConsole("Model successfully trained!")
@@ -630,16 +696,10 @@ mnist.trainForEpoch = async (
   const batchData = await mnist.getBatch("trainingData", currentBatchNum * imagesPerGroup, imagesPerGroup, imageFetchCallback)
   let trainBatchCount = 0
 
-  const gradientUpdate = await mnist.webFed.startTraining({
-    'trainingParams': {
-      'dataset': {
-        'trainingData': batchData.xs,
-        'trainingLabels': batchData.labels
-      }
-    },
+  const gradientUpdate =await mnist.webFed.model.fit(batchData.xs, batchData.labels, {
     batchSize,
     validationSplit,
-    epochs: currentEpoch + epochsToTrainFor,
+    epochs: currentEpoch+epochsToTrainFor,
     initialEpoch: currentEpoch,
     shuffle: true,
     callbacks: {
@@ -655,6 +715,18 @@ mnist.trainForEpoch = async (
       },
       onEpochEnd: (epoch, logs) => {
         metricsVisualizerCallback.onEpochEnd(epoch, logs)
+        // const weightsToBeShared = []
+        // mnist.mnistModel.layers.forEach(layer => {
+        //   const layerWeights = layer.getWeights().map(weightMat => {
+        //     console.log(weightMat)
+        //     return weightMat.data()
+        //   }).flat()
+        //   weightsToBeShared.push(layerWeights)
+        // })
+        // mnist.broadcastToAllPeers(localStorage.currentFederationId, localStorage.clientId, {
+        //   epoch,
+        //   weights: weightsToBeShared
+        // })
         mnist.ui.writeToConsole(`Training Epoch ${mnist.currentEpochNum} completed`)
         mnist.ui.writeToConsole(`Validation Loss = ${logs.val_loss} ; Validation Accuracy = ${logs.val_acc}`)
 
@@ -665,7 +737,7 @@ mnist.trainForEpoch = async (
 }
 
 mnist.stopTraining = () => {
-  mnist.stop = true
+  mnist.webFed.stopTraining()
   mnist.worker.terminate()
   document.getElementById("trainCNNBtn").innerText = "Train CNN"
   document
@@ -678,132 +750,155 @@ mnist.stopTraining = () => {
   mnist.ui.writeToConsole("Terminated. ")
 }
 
-mnist.trainLRBasic = async (datasetIndex = 1, iid = true) => {
-  const prefixFilePathString = iid ? 'iid' : 'noniid'
-  const irisData = await (await fetch(`https://episphere.github.io/lab/iris_${prefixFilePathString}_${datasetIndex}.json`)).json()
+// mnist.trainLRBasic = async (datasetIndex = 1, iid = true) => {
+//   const prefixFilePathString = iid ? 'iid' : 'noniid'
+//   const irisData = await (await fetch(`https://episphere.github.io/lab/iris_${prefixFilePathString}_${datasetIndex}.json`)).json()
 
-  const trainSplit = 0.8
-  const trainSplitIndex = Math.floor(irisData.length) * trainSplit
-  const irisTrainingData = irisData.sort(() => Math.random() - 0.5).slice(0, trainSplitIndex)
-  const irisTestData = irisData.slice(trainSplitIndex)
+//   const trainSplit = 0.8
+//   const trainSplitIndex = Math.floor(irisData.length) * trainSplit
+//   const irisTrainingData = irisData.sort(() => Math.random() - 0.5).slice(0, trainSplitIndex)
+//   const irisTestData = irisData.slice(trainSplitIndex)
 
-  // const trainingData = irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => tf.tensor1d([
-  //   sepal_length, sepal_width, petal_length, petal_width
-  // ]))
+//   // const trainingData = irisTrainingData.map(({sepal_length, sepal_width, petal_length, petal_width}) => tf.tensor1d([
+//   //   sepal_length, sepal_width, petal_length, petal_width
+//   // ]))
 
-  // const trainingLabels = irisTrainingData.map(({species}) => tf.tensor1d([
-  //   species === "setosa" ? 1 : 0,
-  //   species === "virginica" ? 1 : 0,
-  //   species === "versicolor" ? 1 : 0,
-  // ]))
-  const trainingData = tf.tensor2d(irisTrainingData.map(({ sepal_length, sepal_width, petal_length, petal_width }) => [
-    sepal_length, sepal_width, petal_length, petal_width
-  ]))
-  const trainingLabels = irisTrainingData.map(({ species }) => tf.tensor1d([
-    species === "setosa" ? 1 : 0,
-    species === "virginica" ? 1 : 0,
-    species === "versicolor" ? 1 : 0,
-  ]))
+//   // const trainingLabels = irisTrainingData.map(({species}) => tf.tensor1d([
+//   //   species === "setosa" ? 1 : 0,
+//   //   species === "virginica" ? 1 : 0,
+//   //   species === "versicolor" ? 1 : 0,
+//   // ]))
+//   const trainingData = tf.tensor2d(irisTrainingData.map(({ sepal_length, sepal_width, petal_length, petal_width }) => [
+//     sepal_length, sepal_width, petal_length, petal_width
+//   ]))
+//   const trainingLabels = irisTrainingData.map(({ species }) => tf.tensor1d([
+//     species === "setosa" ? 1 : 0,
+//     species === "virginica" ? 1 : 0,
+//     species === "versicolor" ? 1 : 0,
+//   ]))
 
-  const testData = tf.tensor2d(irisTestData.map(({ sepal_length, sepal_width, petal_length, petal_width }) => [
-    sepal_length, sepal_width, petal_length, petal_width
-  ]))
+//   const testData = tf.tensor2d(irisTestData.map(({ sepal_length, sepal_width, petal_length, petal_width }) => [
+//     sepal_length, sepal_width, petal_length, petal_width
+//   ]))
 
-  const weights = tf.tidy(() => tf.variable(tf.randomNormal([4, 1], 0, 1.0), true))
-  const bias = tf.tidy(() => tf.variable(tf.randomNormal([1], 0, 1.0), true))
+//   const weights = tf.tidy(() => tf.variable(tf.randomNormal([4, 1], 0, 1.0), true))
+//   const bias = tf.tidy(() => tf.variable(tf.randomNormal([1], 0, 1.0), true))
 
-  console.log("Weights before:", weights.dataSync())
-  console.log("Bias before", bias.dataSync())
+//   console.log("Weights before:", weights.dataSync())
+//   console.log("Bias before", bias.dataSync())
 
-  const model = (trainData) =>
-    trainData.matMul(weights)
-      .add(bias)
-      .sigmoid()
+//   const model = (trainData) =>
+//     trainData.matMul(weights)
+//       .add(bias)
+//       .sigmoid()
 
-  const lossFunc = (predicted, actual) => tf.metrics.categoricalCrossentropy(actual, predicted)
+//   const lossFunc = (predicted, actual) => tf.metrics.categoricalCrossentropy(actual, predicted)
 
-  const optimizer = tf.train.adam(0.001)
+//   const optimizer = tf.train.adam(0.001)
 
-  for (let epoch = 0; epoch < 100; epoch++) {
-    console.log("===================================================================")
-    console.log("Epoch", epoch)
-    const loss = tf.tidy(() => optimizer.minimize(() => lossFunc(model(trainingData), trainingLabels), true))
-    console.log("Loss:", loss.dataSync())
-    console.log("Weights after", weights.dataSync())
-    console.log("Bias after", bias.dataSync())
-    // console.log(tf.round(model(trainingData)).dataSync())
-    console.log(lossFunc(model(trainingData), trainingLabels).dataSync())
-    const accuracy = tf.tidy(() => tf.metrics.categoricalAccuracy(trainingLabels, tf.round(model(trainingData))))
-    console.log("Accuracy:", accuracy.dataSync())
-  }
-}
+//   for (let epoch = 0; epoch < 100; epoch++) {
+//     console.log("===================================================================")
+//     console.log("Epoch", epoch)
+//     const loss = tf.tidy(() => optimizer.minimize(() => lossFunc(model(trainingData), trainingLabels), true))
+//     console.log("Loss:", loss.dataSync())
+//     console.log("Weights after", weights.dataSync())
+//     console.log("Bias after", bias.dataSync())
+//     // console.log(tf.round(model(trainingData)).dataSync())
+//     console.log(lossFunc(model(trainingData), trainingLabels).dataSync())
+//     const accuracy = tf.tidy(() => tf.metrics.categoricalAccuracy(trainingLabels, tf.round(model(trainingData))))
+//     console.log("Accuracy:", accuracy.dataSync())
+//   }
+// }
 
 // Federated functions
-mnist.createFederation = async (description = '') => {
-  const newFederationId = await webFed.createFederation(undefined, description)
-  return newFederationId
-}
+// mnist.createFederation = async (description = '') => {
+//   const newFederationId = await webFed.createFederation(undefined, description)
+//   return newFederationId
+// }
 
-mnist.joinFederation = async (federationId, clientId) => {
-  await webFed.joinFederation(federationId, clientId)
-  localStorage.currentFederationId = federationId
+// mnist.joinFederation = async (federationId, clientId) => {
+//   await webFed.joinFederation(federationId, clientId)
+//   localStorage.currentFederationId = federationId
 
-  return federationId
-}
+//   return federationId
+// }
 
-mnist.ui.populateFederationsList = () => {
-  const allFederationIds = webFed.getAllFederationIds()
-  const federationsListParent = document.getElementById("federationIdsList")
-  federationsListParent.innerHTML = ''
+// mnist.ui.populateFederationsList = () => {
+//   const allFederationIds = webFed.getAllFederationIds()
+//   const federationsListParent = document.getElementById("federationIdsList")
+//   federationsListParent.innerHTML = ''
 
-  allFederationIds.forEach((id, ind) => {
-    const liElement = document.createElement('li')
+//   allFederationIds.forEach((id, ind) => {
+//     const liElement = document.createElement('li')
 
-    const selectFedBtn = document.createElement('button')
-    selectFedBtn.id = `federation_${id}`
-    selectFedBtn.className = "text-left block w-full whitespace-nowrap bg-transparent px-4 py-2 text-sm font-normal text-neutral-700 hover:bg-neutral-100 active:text-neutral-800 active:no-underline disabled:pointer-events-none dark:text-neutral-200 dark:hover:bg-neutral-600"
-    selectFedBtn.setAttribute('data-te-dropdown-item-ref', '')
-    selectFedBtn.innerText = id
-    selectFedBtn.onclick = () => mnist.ui.joinFederationHandler(id)
+//     const selectFedBtn = document.createElement('button')
+//     selectFedBtn.id = `federation_${id}`
+//     selectFedBtn.className = "text-left block w-full whitespace-nowrap bg-transparent px-4 py-2 text-sm font-normal text-neutral-700 hover:bg-neutral-100 active:text-neutral-800 active:no-underline disabled:pointer-events-none dark:text-neutral-200 dark:hover:bg-neutral-600"
+//     selectFedBtn.setAttribute('data-te-dropdown-item-ref', '')
+//     selectFedBtn.innerText = id
+//     selectFedBtn.onclick = () => mnist.ui.joinFederationHandler(id)
 
-    if (ind !== 0) {
-      liElement.appendChild(document.createElement('hr'))
-    }
+//     if (ind !== 0) {
+//       liElement.appendChild(document.createElement('hr'))
+//     }
 
-    liElement.appendChild(selectFedBtn)
-    federationsListParent.appendChild(liElement)
-  })
+//     liElement.appendChild(selectFedBtn)
+//     federationsListParent.appendChild(liElement)
+//   })
 
-  const joinFederationBtn = document.getElementById("joinFederationBtn")
-  if (allFederationIds.length === 0) {
-    joinFederationBtn.setAttribute("disabled", "true")
-  } else {
-    joinFederationBtn.removeAttribute("disabled")
-  }
-}
+//   const joinFederationBtn = document.getElementById("joinFederationBtn")
+//   if (allFederationIds.length === 0) {
+//     joinFederationBtn.setAttribute("disabled", "true")
+//   } else {
+//     joinFederationBtn.removeAttribute("disabled")
+//   }
+// }
 
-mnist.ui.addSelectorToFederationInList = (federationId) => {
-  const federationsListParent = document.getElementById("federationIdsList")
-  const previouslySelectedElement = federationsListParent.querySelector("button.font-semibold")
-  previouslySelectedElement?.classList.remove("font-bold")
-  previouslySelectedElement?.removeAttribute("disabled")
-  const currentlySelectedFederation = document.getElementById(`federation_${federationId}`)
-  currentlySelectedFederation.classList.add("font-bold")
-  currentlySelectedFederation.setAttribute("disabled", "true")
-}
+// mnist.ui.addSelectorToFederationInList = (federationId) => {
+//   const federationsListParent = document.getElementById("federationIdsList")
+//   const previouslySelectedElement = federationsListParent.querySelector("button.font-semibold")
+//   previouslySelectedElement?.classList.remove("font-bold")
+//   previouslySelectedElement?.removeAttribute("disabled")
+//   const currentlySelectedFederation = document.getElementById(`federation_${federationId}`)
+//   currentlySelectedFederation.classList.add("font-bold")
+//   currentlySelectedFederation.setAttribute("disabled", "true")
+// }
 
-mnist.ui.createFederationHandler = async (e) => {
-  const newFederationId = await mnist.createFederation('')
-  mnist.ui.writeToConsole(`New Federation created with ID: ${newFederationId}`)
-  mnist.ui.populateFederationsList()
-}
+// mnist.ui.createFederationHandler = async (e) => {
+//   const newFederationId = await mnist.createFederation('')
+//   mnist.ui.writeToConsole(`New Federation created with ID: ${newFederationId}`)
+//   mnist.ui.populateFederationsList()
+// }
 
 mnist.ui.joinFederationHandler = async (selfName) => {
-  document.addEventListener("newPeer", (e) => {
-    console.log(e.detail[0])
-    mnist.ui.writeToConsole(`New Peer just joined!`)
+  document.addEventListener("webFed_newPeer", (event) => {
+    const delta = event.detail
+    
+    const newPeerOperations = delta.filter(operation => {
+        return operation.hasOwnProperty("insert")
+    })
+    if (newPeerOperations.length > 0) {
+        const newPeerNames = newPeerOperations.map(operation => {
+            const insertOperations = operation.insert.filter(insertOp => insertOp.hasOwnProperty("name") && insertOp.hasOwnProperty("_webRTCPeerId"))
+            return insertOperations.map(op => op.name)
+        }).flat()
+        newPeerNames.forEach(newPeer => {
+            mnist.ui.writeToConsole(`New Peer ${newPeer} joined.`)
+        })
+    }
   })
-  document.addEventListener("initialModelInfo", async (e) => {
+
+  document.addEventListener("webFed_synced", (event) =>{
+    if (event.detail.synced) {
+        const allPeers = mnist.webFed.getAllPeers()
+        allPeers.forEach(peer => {
+          if (!peer.isSelf)
+            mnist.ui.writeToConsole(`Connected to peer ${peer.name}`)
+        })
+    }
+})
+  
+  document.addEventListener("webFed_initialModelInfo", async (e) => {
     mnist.ui.writeToConsole("Starting Training!")
     mnist.setupWorker()
 
@@ -843,7 +938,7 @@ mnist.ui.joinFederationHandler = async (selfName) => {
       //     })
       mnist.ui.writeToConsole(`0 records written to IndexedDB`)
       await mnist.loadManifest(manifests["training"].filename, trainingObjectStoreName, subsetSize)
-
+      
       //   }
       //   idx += 1
       // }
@@ -851,7 +946,20 @@ mnist.ui.joinFederationHandler = async (selfName) => {
       mnist.ui.writeToConsole("Training data already present in IndexedDB")
     }
     mnist.visor = tfvis.visor()
-    console.log("HEREHRERERER")
+  })
+
+  document.addEventListener("webFed_trainingParams", async (e) => {
+    // const trainingParams = e.detail
+    // mnist.webFed.trainingParams = {
+    //   ...mnist.webFed.trainingParams,
+
+    // }
+  })
+
+  document.addEventListener("webFed_startTraining", (e) => {
+    console.log("HERE")
+    const model = mnist.createModel()
+    mnist.webFed.model = model
     mnist.trainModel()
   })
 
@@ -872,16 +980,16 @@ mnist.ui.joinFederationHandler = async (selfName) => {
 
   document.getElementById("trainCNNBtn").parentElement.classList.remove("hidden")
 
-  const newUserCallback = (e) => {
-    console.log("New User", e.userID)
-    mnist.ui.writeToConsole(`New user ${e.userID} joined!`)
-    mnist.ui.enableTrainLR()
-  }
-  const newMessageCallback = (e) => {
-    console.log(`New message from ${e.userID}:`, e.message)
-    const peerMessageEvent = new CustomEvent("peerMessage", { detail: e })
-    document.body.dispatchEvent(peerMessageEvent)
-  }
+  // const newUserCallback = (e) => {
+  //   console.log("New User", e.userID)
+  //   mnist.ui.writeToConsole(`New user ${e.userID} joined!`)
+  //   mnist.ui.enableTrainLR()
+  // }
+  // const newMessageCallback = (e) => {
+  //   console.log(`New message from ${e.userID}:`, e.message)
+  //   const peerMessageEvent = new CustomEvent("peerMessage", { detail: e })
+  //   document.body.dispatchEvent(peerMessageEvent)
+  // }
 
 
   document.getElementById("federationIdTextInput").value = mnist.webFed.federationName
