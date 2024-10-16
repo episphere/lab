@@ -970,8 +970,10 @@ mnist.ui.joinFederationHandler = async (selfName) => {
   if (!selfName) {
     selfName = crypto.randomUUID()
   }
+  
   mnist.webFed = new WebFed({
     signalingServer,
+    'federationName': document.getElementById("federationIdTextInput").value.length > 0 ? document.getElementById("federationIdTextInput").value : undefined,
     selfName
   })
 
