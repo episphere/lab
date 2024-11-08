@@ -71,7 +71,9 @@ export class WebFed {
         const previousInstanceIndex = this.getAllPeers().findIndex(peerObj => peerObj.name === selfName)
         this.peersSharedArray.delete(previousInstanceIndex, 1)
       }
-      this.selfName = selfName
+      this.selfName = selfName // THIS SHOULD NOT HAPPEN HERE. WAITING FOR SELFNAME TO BE ASSIGNED MAKES SENSE TO PREVENT DUPLICATES, 
+      // BUT IF THIS IS THE FIRST PEER, IT NEVER GETS ASSIGNED UNTIL ANOTHER ONE JOINS. COULD BE A RACE CONDITION AT THAT POINT. IF THIS
+      // IS THE FIRST PEER, JUST ASSIGN SELFNAME DIRECTLY!!!!!
       
       this.peersSharedArray.push([{
         name: this.selfName,
@@ -170,6 +172,17 @@ export class WebFed {
                   this.messagesSharedArray.insert(index, [messageObj])
                  
                   break
+
+                case 'roundComplete':
+                  const trainingRoundCompleteEvent = new CustomEvent("webFed_trainingRoundComplete", {
+                    detail: update
+                  })
+                  document.dispatchEvent(trainingRoundCompleteEvent)
+                  
+                  update.acknowledged.push(this.selfName)
+                  this.messagesSharedArray.delete(index, 1)
+                  this.messagesSharedArray.insert(index, [update])
+                  break
                 
               default:
                 console.log(messageObj)
@@ -183,16 +196,16 @@ export class WebFed {
         this.parametersSharedArray.forEach(async (update, index) => {
           if (!update.acknowledged.includes(this.selfName)) {
             switch(update.type) {
-              case 'roundComplete':
-                const trainingRoundCompleteEvent = new CustomEvent("webFed_trainingRoundComplete", {
-                  detail: update
-                })
-                document.dispatchEvent(trainingRoundCompleteEvent)
+              // case 'roundComplete':
+              //   const trainingRoundCompleteEvent = new CustomEvent("webFed_trainingRoundComplete", {
+              //     detail: update
+              //   })
+              //   document.dispatchEvent(trainingRoundCompleteEvent)
                 
-                update.acknowledged.push(this.selfName)
-                this.parametersSharedArray.delete(index, 1)
-                this.parametersSharedArray.insert(index, [update])
-                break
+              //   update.acknowledged.push(this.selfName)
+              //   this.parametersSharedArray.delete(index, 1)
+              //   this.parametersSharedArray.insert(index, [update])
+              //   break
 
               default:
                 console.log("Params updated", update)
@@ -499,7 +512,7 @@ export class WebFed {
   }
 
   roundCompleteCallback(weights) {
-    this.broadcastParams({
+    this.broadcastMessage({
       'type': "roundComplete",
       'data': {
         'epoch': this.currentEpoch,
@@ -511,8 +524,8 @@ export class WebFed {
   }
 
   async aggregateWeights(aggregationStrategy = 1) {
-    const currentEpochMessages = this.getParams({
-      'paramsType': "roundComplete",
+    const currentEpochMessages = this.getMessages({
+      'messageType': "roundComplete",
       'dataFilters': {
         'initialEpoch': this.currentEpoch
       }
