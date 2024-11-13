@@ -8,6 +8,8 @@ const PEERS_SHARED_ARRAY_NAME = "peers"
 const MESSAGES_SHARED_ARRAY_NAME = "messages"
 const PARAMETERS_SHARED_ARRAY_NAME = "parameters"
 
+const EVENT_NAME_PREFIX = "webFed"
+
 export class WebFed {
   constructor({ signalingServer = [], federationName = DEFAULT_FEDERATION_NAME, federationPassword = "", selfName, dataset, quorumThreshold = 1.0 }) {
     if (!signalingServer) {
@@ -94,8 +96,8 @@ export class WebFed {
 
           if (!messageObj?.acknowledged?.includes(this.selfName)) {
             switch (messageObj.type) {
-              case 'claimInitiator':
-                const claimInitiatorEvent = new CustomEvent("webFed_claimInitiator", messageObj)
+              case this.MESSAGE_TYPE_NAMES['claimInitiator']:
+                const claimInitiatorEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['claimInitiator']}`, messageObj)
                 document.dispatchEvent(claimInitiatorEvent)
 
                 if (this.canClaimInitiatorStatus(messageObj.data.initiatedBy)) {
@@ -108,13 +110,13 @@ export class WebFed {
                 this.messagesSharedArray.insert(index, [messageObj])
                 break
 
-              case 'initialModelInfo':
+              case this.MESSAGE_TYPE_NAMES['initialModelInfo']:
                 if (messageObj.data) {
                   const { FedModel } = await import("./webFed_model.js")
                   this.model = new FedModel(messageObj.data)
                 }
 
-                const initialModelInfoReceivedEvent = new CustomEvent("webFed_initialModelInfo", {
+                const initialModelInfoReceivedEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['initialModelInfo']}`, {
                   detail: messageObj
                 })
                 document.dispatchEvent(initialModelInfoReceivedEvent)
@@ -125,7 +127,7 @@ export class WebFed {
 
                 break
 
-              case 'trainingParams':
+              case this.MESSAGE_TYPE_NAMES['trainingParams']:
                 if (messageObj.data) {
                   const { data: trainingParams } = messageObj
                   this.trainingParams = {
@@ -134,7 +136,7 @@ export class WebFed {
                   }
                 }
                 
-                const trainingParamsEvent = new CustomEvent("webFed_trainingParams", {
+                const trainingParamsEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['trainingParams']}`, {
                   detail: messageObj
                 })
                 document.dispatchEvent(trainingParamsEvent)
@@ -145,8 +147,8 @@ export class WebFed {
                 
                 break
 
-              case 'startTraining':
-                const startTrainingEvent = new CustomEvent("webFed_startTraining", {
+              case this.MESSAGE_TYPE_NAMES['startTraining']:
+                const startTrainingEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['startTraining']}`, {
                   detail: messageObj
                 })
                 document.dispatchEvent(startTrainingEvent)
@@ -157,12 +159,10 @@ export class WebFed {
                 this.messagesSharedArray.insert(index, [messageObj])
 
                 break
-
-                break
                 
-                case 'stopTraining':
+                case this.MESSAGE_TYPE_NAMES['stopTraining']:
                   this.stopRequested = true
-                  const stopRequestedEvent = new CustomEvent("webFed_stopRequested", {
+                  const stopRequestedEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['stopTraining']}`, {
                     detail: messageObj
                   })
                   document.dispatchEvent(stopRequestedEvent)
@@ -171,17 +171,6 @@ export class WebFed {
                   this.messagesSharedArray.delete(index, 1)
                   this.messagesSharedArray.insert(index, [messageObj])
                  
-                  break
-
-                case 'roundComplete':
-                  const trainingRoundCompleteEvent = new CustomEvent("webFed_trainingRoundComplete", {
-                    detail: update
-                  })
-                  document.dispatchEvent(trainingRoundCompleteEvent)
-                  
-                  update.acknowledged.push(this.selfName)
-                  this.messagesSharedArray.delete(index, 1)
-                  this.messagesSharedArray.insert(index, [update])
                   break
                 
               default:
@@ -196,16 +185,16 @@ export class WebFed {
         this.parametersSharedArray.forEach(async (update, index) => {
           if (!update.acknowledged.includes(this.selfName)) {
             switch(update.type) {
-              // case 'roundComplete':
-              //   const trainingRoundCompleteEvent = new CustomEvent("webFed_trainingRoundComplete", {
-              //     detail: update
-              //   })
-              //   document.dispatchEvent(trainingRoundCompleteEvent)
-                
-              //   update.acknowledged.push(this.selfName)
-              //   this.parametersSharedArray.delete(index, 1)
-              //   this.parametersSharedArray.insert(index, [update])
-              //   break
+              case this.MESSAGE_TYPE_NAMES['roundComplete']:
+                  const trainingRoundCompleteEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['roundComplete']}`, {
+                    detail: update
+                  })
+                  document.dispatchEvent(trainingRoundCompleteEvent)
+                  
+                  update.acknowledged.push(this.selfName)
+                  this.messagesSharedArray.delete(index, 1)
+                  this.messagesSharedArray.insert(index, [update])
+                  break
 
               default:
                 console.log("Params updated", update)
@@ -217,6 +206,15 @@ export class WebFed {
 
     })
 
+  }
+
+  MESSAGE_TYPE_NAMES = {
+    "claimInitiator": "claimInitiator",
+    "initialModelInfo": "initialModelInfo",
+    "trainingParams": "trainingParams",
+    "startTraining": "startTraining",
+    "roundComplete": "trainingRoundComplete",
+    "stopTraining": "stopTraining"
   }
 
   reset() {
@@ -368,8 +366,12 @@ export class WebFed {
 
   checkQuorum(messageType) {
     let wasQuorumAchieved = false
-    this.messagesSharedArray.forEach(message => {
-      if (message.type === messageType && message.acknowledged.length >= this.getNumPeers() * this.quorumThreshold) {
+    
+    const messages = this.getMessages({
+      messageType
+    })
+    messages.forEach(message => {
+      if (message.acknowledged.length >= this.getNumPeers() * this.quorumThreshold) {
         wasQuorumAchieved = true
       }
     })
@@ -390,25 +392,30 @@ export class WebFed {
 
   canClaimInitiatorStatus(name) {
     let canClaimInitiatorStatus = true
-    this.messagesSharedArray.forEach(message => {
-      if (message.type === "claimInitiator" && message.data.initiatedBy !== name && this.isPeerConnected(message.data.initiatedBy)) {
+    
+    const messages = this.getMessages({
+      'messageType': this.MESSAGE_TYPE_NAMES['claimInitiator']
+    })
+    messages.forEach(message => {
+      if (message.data.initiatedBy !== name && this.isPeerConnected(message.data.initiatedBy)) {
         canClaimInitiatorStatus = false
       }
     })
+    
     return canClaimInitiatorStatus
   }
 
   claimInitiatorStatus() {
     if (this.canClaimInitiatorStatus(this.selfName)) {
       this.broadcastMessage({
-        'type': "claimInitiator",
+        'type': this.MESSAGE_TYPE_NAMES['claimInitiator'],
         'data': {
           'initiatedBy': this.selfName
         },
         'from': this.selfName,
         'acknowledged': [this.selfName]
       })
-      return this.awaitQuorum("claimInitiator")
+      return this.awaitQuorum(this.MESSAGE_TYPE_NAMES['claimInitiator'])
     } else {
       console.log("Cannot claim initiator status. Another peer is currently the initiator.")
       return undefined
@@ -427,7 +434,7 @@ export class WebFed {
       }
 
       this.broadcastMessage({
-        'type': "initialModelInfo",
+        'type': this.MESSAGE_TYPE_NAMES['initialModelInfo'],
         'data': modelConfig?.framework ? modelConfig : undefined,
         'from': this.selfName,
         'acknowledged': [this.selfName]
@@ -448,7 +455,7 @@ export class WebFed {
       minEpochs
     }
     this.broadcastMessage({
-      'type': "trainingParams",
+      'type': this.MESSAGE_TYPE_NAMES['trainingParams'],
       'data': {
         'numEpochsToAggregateAfter': numEpochsToAggregateAfter,
         'aggregationStrategy': aggregationStrategy,
@@ -465,15 +472,15 @@ export class WebFed {
       // Training will likely be handled by the caller.
       return
     }
-    await this.awaitQuorum("initialModelInfo")
-    await this.awaitQuorum("trainingParams")
+    await this.awaitQuorum(this.MESSAGE_TYPE_NAMES['initialModelInfo'])
+    await this.awaitQuorum(this.MESSAGE_TYPE_NAMES['trainingParams'])
 
     this.stopRequested = false
     console.log("STARTING TRAINING!", !!this.isInitiator)
 
     if (this.isInitiator) {
       this.broadcastMessage({
-        'type': "startTraining",
+        'type': this.MESSAGE_TYPE_NAMES['startTraining'],
         'from': this.selfName,
         'acknowledged': [this.selfName]
       })
@@ -512,26 +519,30 @@ export class WebFed {
   }
 
   roundCompleteCallback(weights) {
-    this.broadcastMessage({
-      'type': "roundComplete",
-      'data': {
-        'epoch': this.currentEpoch,
-        'weights': weights
-      },
-      'from': this.selfName,
-      'acknowledged': [this.selfName]
-    })
+    for (const shardIndex in weights) {
+      this.broadcastParams({
+        'type': this.MESSAGE_TYPE_NAMES[`roundComplete`],
+        'data': {
+          'epoch': this.currentEpoch,
+          'shardIndex': shardIndex,
+          'weights': weights[shardIndex]
+        },
+        'from': this.selfName,
+        'acknowledged': [this.selfName]
+      })
+    }
   }
 
   async aggregateWeights(aggregationStrategy = 1) {
-    const currentEpochMessages = this.getMessages({
-      'messageType': "roundComplete",
+    const currentEpochMessages = this.getParams({
+      'messageType': this.MESSAGE_TYPE_NAMES['roundComplete'],
       'dataFilters': {
         'initialEpoch': this.currentEpoch
       }
     })
+    console.log(currentEpochMessages, this.parametersSharedArray.toArray())
 
-    while (currentEpochMessages.length < this.getNumPeers()) {
+    while (currentEpochMessages.length < this.getNumPeers() * this.quorumThreshold * (this.model.getWeights()).length) {
       await new Promise(res => setTimeout(res, 1000))
       return this.aggregateWeights(aggregationStrategy)
     }
@@ -540,11 +551,12 @@ export class WebFed {
     switch (aggregationStrategy) {
       case 1:
         const { federatedAveraging } = await import("./aggregationMethods.js")
-        const allWeights = currentEpochMessages.reduce((weightsArr, currentModel) => {
-          weightsArr.push(currentModel.data.weights)
-          return weightsArr
-        }, [])
-        
+        const allWeights = []
+        for (const peer of this.getAllPeers()) {
+          const modelWiseWeights = currentEpochMessages.filter(message => message.from === peer.name).sort((a,b) => {a.data.shardIndex - b.data.shardIndex}).map(model => model.data.weights)
+          allWeights.push(modelWiseWeights)
+        }
+        console.log(allWeights)
         aggregatedParameters = federatedAveraging(allWeights)
         break
       default:
@@ -557,7 +569,7 @@ export class WebFed {
   stopTraining() {
     this.stopRequested = true
     this.broadcastMessage({
-      'type': "stopTraining",
+      'type': this.MESSAGE_TYPE_NAMES['stopTraining'],
       'data': {},
       'from': this.selfName,
       'acknowledged': [this.selfName]
