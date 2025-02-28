@@ -174,7 +174,15 @@ export class WebFed {
                   break
                 
               default:
-                console.log(messageObj)
+                const defaultMessageEvent = new CustomEvent(`${EVENT_NAME_PREFIX}_${this.MESSAGE_TYPE_NAMES['defaultMessage']}`, {
+                  detail: messageObj
+                })
+                document.dispatchEvent(defaultMessageEvent)
+
+                messageObj.acknowledged.push(this.selfName)
+                this.messagesSharedArray.delete(index, 1)
+                this.messagesSharedArray.insert(index, [messageObj])
+
                 break
             }
           }
@@ -214,7 +222,8 @@ export class WebFed {
     "trainingParams": "trainingParams",
     "startTraining": "startTraining",
     "roundComplete": "trainingRoundComplete",
-    "stopTraining": "stopTraining"
+    "stopTraining": "stopTraining",
+    "defaultMessage": "defaultMessage"
   }
 
   reset() {
